@@ -84,16 +84,15 @@ elif page == "Individual Fellow Report":
     score_row = scores_df[scores_df['Name'] == selected].iloc[0] if selected in scores_df['Name'].values else None
 
     st.subheader("Attendance")
-st.write(f"**Total Attendance:** {att_row['%Total Attendance']}% ({att_row['Count Attendance']} sessions)")
-st.write(f"**Small Group Attendance:** {att_row['% Small Group Attendance']}%")  # <-- corrected here
-st.write(f"**Practice Test Attendance:** {att_row['% Practice Test Attendance']}%")
+    st.write(f"**Total Attendance:** {att_row['%Total Attendance']}% ({att_row['Count Attendance']} sessions)")
+    st.write(f"**Small Group Attendance:** {att_row['% Small Group Attendance']}%")
+    st.write(f"**Practice Test Attendance:** {att_row['% Practice Test Attendance']}%")
 
     if score_row is not None:
         st.subheader("Test Scores")
         st.write(f"**Diagnostic:** {score_row['Diagnostic']}")
         st.write(f"**Personal Best (PB):** {score_row['PB']}")
         pt_scores = score_row[[col for col in scores_df.columns if "PT" in col and "Unnamed" not in col]].dropna()
-
         st.line_chart(pt_scores.T.rename(columns={pt_scores.name: 'Score'}))
     else:
         st.write("No score data available for this fellow.")
