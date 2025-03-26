@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -14,12 +13,14 @@ def load_data():
 
 attendance_df, scores_df = load_data()
 
-# Clean column names FIRST
+# Clean column names
 attendance_df.columns = attendance_df.columns.str.strip()
 scores_df.columns = scores_df.columns.str.strip()
 
-# Debugging line AFTER cleaning
-st.write("Attendance Columns:", attendance_df.columns.tolist())  # Debugging line
+# Create 'Full Name' and 'Name' columns early for reuse
+attendance_df['Full Name'] = attendance_df['First'] + ' ' + attendance_df['Last']
+scores_df['Name'] = scores_df['Fellow First'] + ' ' + scores_df['Fellow Last']
+scores_df.rename(columns={'Diagnostic ': 'Diagnostic', 'Approx PB': 'PB'}, inplace=True)
 
 # Sidebar navigation
 page = st.sidebar.selectbox("Select View", ["Cohort Overview", "Individual Fellow Report"])
@@ -27,12 +28,6 @@ page = st.sidebar.selectbox("Select View", ["Cohort Overview", "Individual Fello
 # --- COHORT OVERVIEW ---
 if page == "Cohort Overview":
     st.title("YA2LS 2024 Fellows - Cohort Overview")
-
-   # --- COHORT OVERVIEW ---
-if page == "Cohort Overview":
-    st.title("YA2LS 2024 Fellows - Cohort Overview")
-
-    attendance_df['Full Name'] = attendance_df['First'] + ' ' + attendance_df['Last']
 
     # Attendance Metrics
     st.header("Attendance Summary")
@@ -61,9 +56,6 @@ if page == "Cohort Overview":
 
     # Test Score Summary
     st.header("Test Score Summary")
-    scores_df['Name'] = scores_df['Fellow First'] + ' ' + scores_df['Fellow Last']
-    scores_df.rename(columns={'Diagnostic ': 'Diagnostic', 'Approx PB': 'PB'}, inplace=True)
-
     col4, col5 = st.columns(2)
     col4.metric("Average Diagnostic Score", f"{scores_df['Diagnostic'].mean():.1f}")
     col5.metric("Average PB Score", f"{scores_df['PB'].mean():.1f}")
@@ -81,17 +73,20 @@ if page == "Cohort Overview":
 # --- INDIVIDUAL FELLOW REPORT ---
 elif page == "Individual Fellow Report":
     st.title("Fellow Report")
-    fellows = attendance_df['First'] + ' ' + attendance_df['Last']
+    fellows = attendance_df['Full Name']
     selected = st.selectbox("Select a Fellow", fellows)
 
-    att_row = attendance_df[attendance_df['Full Name'] == selected].iloc[0]
+    match = attendance_df[attendance_df['Full Name'] == selected]
+    if not match.empty:
+        att_row = match.iloc[0]
+        st.subheader("Attendance")
+        st.write(f"**Total Attendance:** {att_row['%Total Attendance']}% ({att_row['Count Attendance']} sessions)")
+        st.write(f"**Small Group Attendance:** {att_row['% Small Group Attendance']}%")         
+        st.write(f"**Practice Test Attendance:** {att_row['% Practice Test Attendance']}%")
+    else:
+        st.warning("No attendance data found for this fellow.")
+
     score_row = scores_df[scores_df['Name'] == selected].iloc[0] if selected in scores_df['Name'].values else None
-
-    st.subheader("Attendance")
-    st.write(f"**Total Attendance:** {att_row['%Total Attendance']}% ({att_row['Count Attendance']} sessions)")
-    st.write(f"**Small Group Attendance:** {att_row['% Small Group Attendance']}%")         
-    st.write(f"**Practice Test Attendance:** {att_row['% Practice Test Attendance']}%")
-
     if score_row is not None:
         st.subheader("Test Scores")
         st.write(f"**Diagnostic:** {score_row['Diagnostic']}")
