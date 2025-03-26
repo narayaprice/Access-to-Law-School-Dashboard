@@ -86,12 +86,31 @@ elif page == "Individual Fellow Report":
     else:
         st.warning("No attendance data found for this fellow.")
 
-    score_row = scores_df[scores_df['Name'] == selected].iloc[0] if selected in scores_df['Name'].values else None
-    if score_row is not None:
+    score_row_match = scores_df[scores_df['Name'] == selected]
+    if not score_row_match.empty:
+        score_row = score_row_match.iloc[0]
         st.subheader("Test Scores")
         st.write(f"**Diagnostic:** {score_row['Diagnostic']}")
         st.write(f"**Personal Best (PB):** {score_row['PB']}")
-        pt_scores = score_row[[col for col in scores_df.columns if "PT" in col and "Unnamed" not in col]].dropna()
-        st.line_chart(pt_scores.T.rename(columns={pt_scores.name: 'Score'}))
+
+        # Extract PT score columns in correct numerical order
+        pt_columns = sorted(
+            [col for col in scores_df.columns if col.startswith("PT") and col[2:].isdigit()],
+            key=lambda x: int(x[2:])
+        )
+
+        pt_scores = score_row[pt_columns].dropna()
+
+        if not pt_scores.empty:
+            # Create DataFrame with PT names as index for plotting
+            pt_chart_data = pd.DataFrame({
+                "PT": pt_scores.index,
+                "Score": pt_scores.values
+            }).set_index("PT")
+
+            st.subheader("Practice Test Scores Over Time")
+            st.line_chart(pt_chart_data)
+        else:
+            st.write("No practice test scores available.")
     else:
         st.write("No score data available for this fellow.")
