@@ -85,7 +85,7 @@ elif page == "Individual Fellow Report":
 
     st.subheader("Attendance")
     st.write(f"**Total Attendance:** {att_row['%Total Attendance']}% ({att_row['Count Attendance']} sessions)")
-    st.write(f"**Small Group Attendance:** {att_row['% Small Group Attendance']}%")
+    st.write(f"**Small Group Attendance:** {att_row['% Small Group Attendance']}%")         
     st.write(f"**Practice Test Attendance:** {att_row['% Practice Test Attendance']}%")
 
     if score_row is not None:
