@@ -3,6 +3,7 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 st.cache_data.clear() 
+
 # Load Excel file
 @st.cache_data
 def load_data():
@@ -13,9 +14,12 @@ def load_data():
 
 attendance_df, scores_df = load_data()
 
-# Clean column names
+# Clean column names FIRST
 attendance_df.columns = attendance_df.columns.str.strip()
 scores_df.columns = scores_df.columns.str.strip()
+
+# Debugging line AFTER cleaning
+st.write("Attendance Columns:", attendance_df.columns.tolist())  # Debugging line
 
 # Sidebar navigation
 page = st.sidebar.selectbox("Select View", ["Cohort Overview", "Individual Fellow Report"])
