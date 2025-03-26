@@ -2,7 +2,7 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
-
+st.cache_data.clear() 
 # Load Excel file
 @st.cache_data
 def load_data():
