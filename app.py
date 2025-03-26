@@ -28,7 +28,7 @@ if page == "Cohort Overview":
     st.header("Attendance Summary")
     attendance_df['Full Name'] = attendance_df['First'] + ' ' + attendance_df['Last']
     st.metric("Average Total Attendance %", f"{attendance_df['%Total Attendance'].mean():.1f}%")
-    st.metric("Average Small Group Attendance %", f"{attendance_df['% Small Group Attendance '].mean():.1f}%")
+    st.metric("Average Small Group Attendance %", f"{attendance_df['% Small Group Attendance'].mean():.1f}%")
 
     # Bar chart - Total Attendance
     st.subheader("Total Attendance by Fellow")
@@ -58,7 +58,7 @@ elif page == "Individual Fellow Report":
 
     st.subheader("Attendance")
     st.write(f"**Total Attendance:** {att_row['%Total Attendance']}% ({att_row['Count Attendance']} sessions)")
-    st.write(f"**Small Group Attendance:** {att_row['% Small Group Attendance ']}%")
+    st.write(f"**Small Group Attendance:** {att_row['% Small Group Attendance']}%")
     st.write(f"**Practice Test Attendance:** {att_row['% Practice Test Attendance']}%")
 
     if score_row is not None:
