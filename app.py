@@ -1,139 +1,128 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
-st.cache_data.clear() 
+import seaborn as sns
+import io
 
-# Load Excel file
+st.set_page_config(layout="wide", page_title="YA2LS Dashboard")
+
+# Inject custom Yale-inspired CSS
+yale_css = """
+    <style>
+        body {
+            font-family: 'Georgia', serif;
+            background-color: #f8f9fa;
+        }
+        .main > div {
+            padding: 2rem;
+        }
+        h1, h2, h3, h4 {
+            color: #00356B;
+        }
+        .stButton>button {
+            background-color: #00356B;
+            color: white;
+            border-radius: 5px;
+        }
+        .stDownloadButton>button {
+            background-color: #0067B1;
+            color: white;
+        }
+    </style>
+"""
+st.markdown(yale_css, unsafe_allow_html=True)
+
 @st.cache_data
 def load_data():
     xls = pd.ExcelFile("YA2LS Cohort 4 Data (2024 Fellows).xlsx")
-    attendance_df = xls.parse("Attendance")
-    scores_df = xls.parse("Test Scores")
-    return attendance_df, scores_df
+    attendance = xls.parse("Attendance_New")
+    scores = xls.parse("Test Scores")
+    return attendance, scores
 
 attendance_df, scores_df = load_data()
 
-# Clean column names
+# Clean up
 attendance_df.columns = attendance_df.columns.str.strip()
 scores_df.columns = scores_df.columns.str.strip()
 
-# Create 'Full Name' and 'Name' columns early for reuse
 attendance_df['Full Name'] = attendance_df['First'] + ' ' + attendance_df['Last']
 scores_df['Name'] = scores_df['Fellow First'] + ' ' + scores_df['Fellow Last']
-scores_df.rename(columns={'Diagnostic ': 'Diagnostic', 'Approx PB': 'PB'}, inplace=True)
+
+# Sidebar with logo and branding
+st.sidebar.image("https://law.yale.edu/sites/default/files/images/YLS_Logo_Blue.png", use_column_width=True)
+st.sidebar.title("YA2LS Dashboard")
 
 # Sidebar navigation
-page = st.sidebar.selectbox("Select View", ["Cohort Overview", "Individual Fellow Report"])
+view = st.sidebar.selectbox("Choose View", ["Cohort Overview", "Individual Fellow Report"])
 
-# --- COHORT OVERVIEW ---
-if page == "Cohort Overview":
-    st.title("YA2LS 2024 Fellows - Cohort Overview")
+if view == "Cohort Overview":
+    st.title("Access to Law School Fellow Data Dashboard")
 
-    # Attendance Metrics
-    st.header("Attendance Summary")
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Avg. Total Attendance %", f"{attendance_df['%Total Attendance'].mean():.1f}%")
-    col2.metric("Avg. Small Group Attendance %", f"{attendance_df['% Small Group Attendance'].mean():.1f}%")
-    col3.metric("Avg. Practice Test Attendance %", f"{attendance_df['% Practice Test Attendance'].mean():.1f}%")
+    st.header("1. Attendance Distributions")
+    percent_cols = ["FSG %", "SSG %", "SA %", "Total %"]
+    fig, ax = plt.subplots(1, 4, figsize=(20, 5))
+    for i, col in enumerate(percent_cols):
+        sns.boxplot(y=attendance_df[col], ax=ax[i], color="#00356B")
+        ax[i].set_title(col)
+    st.pyplot(fig)
 
-    # Bar chart - Total Attendance
-    st.subheader("Total Attendance by Fellow")
-    fig1, ax1 = plt.subplots(figsize=(8, 5))
-    sorted_total = attendance_df.sort_values('%Total Attendance', ascending=True)
-    ax1.barh(sorted_total['Full Name'], sorted_total['%Total Attendance'], color='skyblue')
-    ax1.set_xlabel('% Attendance')
-    ax1.set_title('Total Attendance by Fellow')
-    st.pyplot(fig1)
+    st.header("2. Aggregate Attendance Trends")
+    fsg_cols = [col for col in attendance_df.columns if col.startswith("FSG")]
+    ssg_cols = [col for col in attendance_df.columns if col.startswith("SSG")]
+    sa_cols = [col for col in attendance_df.columns if col.startswith("SA")]
 
-    # Bar chart - Small Group Attendance
-    st.subheader("Small Group Attendance by Fellow")
-    fig2, ax2 = plt.subplots(figsize=(8, 5))
-    sorted_sg = attendance_df.sort_values('% Small Group Attendance', ascending=True)
-    ax2.barh(sorted_sg['Full Name'], sorted_sg['% Small Group Attendance'], color='orange')
-    ax2.set_xlabel('% Attendance')
-    ax2.set_title('Small Group Attendance by Fellow')
-    st.pyplot(fig2)
+    session_means = pd.DataFrame({
+        'FSG': attendance_df[fsg_cols].apply(pd.to_numeric, errors='coerce').mean(),
+        'SSG': attendance_df[ssg_cols].apply(pd.to_numeric, errors='coerce').mean(),
+        'SA': attendance_df[sa_cols].apply(pd.to_numeric, errors='coerce').mean()
+    })
+    st.line_chart(session_means)
 
-    # Test Score Summary
-    st.header("Test Score Summary")
-    col4, col5 = st.columns(2)
-    col4.metric("Average Diagnostic Score", f"{scores_df['Diagnostic'].mean():.1f}")
-    col5.metric("Average PB Score", f"{scores_df['PB'].mean():.1f}")
+    st.header("3. Test Score Growth")
+    scores_df = scores_df.rename(columns={"Diagnostic ": "Diagnostic"})
+    scores_df['Score Change'] = scores_df['Final'] - scores_df['Diagnostic']
+    st.write("Average Score Change:", scores_df['Score Change'].mean())
+    st.bar_chart(scores_df[['Diagnostic', 'Final']].mean())
 
-    # Bar chart - Personal Best Scores
-    st.subheader("Personal Best Scores by Fellow")
-    fig3, ax3 = plt.subplots(figsize=(8, 5))
-    sorted_scores = scores_df.sort_values('PB', ascending=True)
-    ax3.barh(sorted_scores['Name'], sorted_scores['PB'], color='green')
-    ax3.set_xlabel('Score')
-    ax3.set_title('Personal Best (PB) Scores')
-    st.pyplot(fig3)
+    st.header("4. Correlation: Attendance vs. Score Change")
+    merged = pd.merge(scores_df, attendance_df, left_on="Name", right_on="Full Name")
+    fig, ax = plt.subplots()
+    sns.scatterplot(data=merged, x="Total %", y="Score Change", ax=ax, color="#00356B")
+    st.pyplot(fig)
 
+    st.header("5. Cohort Summary Table")
+    summary = pd.DataFrame({
+        "Avg FSG %": [attendance_df["FSG %"].mean()],
+        "Avg SSG %": [attendance_df["SSG %"].mean()],
+        "Avg SA %": [attendance_df["SA %"].mean()],
+        "Avg Total %": [attendance_df["Total %"].mean()],
+        "Avg Score Change": [scores_df['Score Change'].mean()],
+        "Total Fellows": [len(attendance_df)]
+    })
+    st.dataframe(summary)
 
-# --- INDIVIDUAL FELLOW REPORT ---
-elif page == "Individual Fellow Report":
-    st.title("Fellow Report")
-    fellows = attendance_df['Full Name']
-    selected = st.selectbox("Select a Fellow", fellows)
+elif view == "Individual Fellow Report":
+    st.title("Access to Law School Fellow Data Dashboard")
+    fellow = st.selectbox("Select Fellow", attendance_df["Full Name"].unique())
+    att_row = attendance_df[attendance_df["Full Name"] == fellow]
+    score_row = scores_df[scores_df["Name"] == fellow]
 
-    # Get selected fellow rows
-    att_match = attendance_df[attendance_df['Full Name'] == selected]
-    score_match = scores_df[scores_df['Name'] == selected]
+    st.subheader("1. Attendance Timeline")
+    fig, ax = plt.subplots(figsize=(12, 4))
+    full_att = att_row.filter(like='FSG').T.join(att_row.filter(like='SSG').T).join(att_row.filter(like='SA').T)
+    full_att.columns = ['Attendance']
+    full_att.plot(kind='bar', ax=ax, color="#00356B")
+    st.pyplot(fig)
 
-    if not att_match.empty:
-        att_row = att_match.iloc[0]
-        st.subheader("Attendance (Includes Small Group & Saturday Academy)")
-        st.write(f"**Total Attendance:** {att_row['%Total Attendance']}% ({att_row['Count Attendance']} sessions)")
-        st.write(f"**Small Group Attendance:** {att_row['% Small Group Attendance']}%")         
-        st.write(f"**Practice Test Attendance:** {att_row['% Practice Test Attendance']}%")
+    st.subheader("2. Score Progression")
+    scores = score_row[['Diagnostic', 'PB', 'Final']].T.rename(columns={score_row.index[0]: 'Score'})
+    st.line_chart(scores)
 
-        # --- Attendance Over Time Chart ---
-        attendance_columns = [
-            col for col in attendance_df.columns
-            if col.startswith("FSG") or col.startswith("SSG") or col.startswith("Spring Small Group")
-        ]
+    st.subheader("3. Attendance vs. Score Change")
+    st.write("Total Attendance %:", att_row['Total %'].values[0])
+    st.write("Score Change:", (score_row['Final'].values[0] - score_row['Diagnostic'].values[0]))
 
-        raw_attendance = att_row[attendance_columns]
-
-        # Convert attendance entries to binary (1 = Present, 0 = Absent)
-        bin_attendance = raw_attendance.apply(lambda x: 1 if str(x).strip().lower() in ['yes', '1', 'present'] else 0)
-
-        # Build DataFrame for charting
-        attendance_chart = pd.DataFrame({
-            "Session": bin_attendance.index,
-            "Present": bin_attendance.values
-        }).set_index("Session")
-
-        st.subheader("Session Attendance Over Time")
-        st.bar_chart(attendance_chart)
-
-    else:
-        st.warning("No attendance data found for this fellow.")
-
-    if not score_match.empty:
-        score_row = score_match.iloc[0]
-        st.subheader("Test Scores")
-        st.write(f"**Diagnostic:** {score_row['Diagnostic']}")
-        st.write(f"**Personal Best (PB):** {score_row['PB']}")
-
-        # --- Practice Test Scores Over Time ---
-        pt_columns = [col for col in scores_df.columns if col.startswith("PT")]
-        pt_scores = score_row[pt_columns].dropna()
-
-        # Clean column names (remove spaces)
-        pt_scores.index = [col.replace(" ", "") for col in pt_scores.index]
-
-        if not pt_scores.empty:
-            pt_chart = pd.DataFrame({
-                "PT": pt_scores.index,
-                "Score": pt_scores.values
-            }).sort_values("PT")  # PT names like PT136, PT137, etc.
-
-            pt_chart.set_index("PT", inplace=True)
-
-            st.subheader("Practice Test Scores Over Time")
-            st.line_chart(pt_chart)
-        else:
-            st.info("No practice test scores available.")
-    else:
-        st.info("No score data available for this fellow.")
+    st.subheader("4. Downloadable Report")
+    export_df = pd.concat([att_row.reset_index(drop=True), score_row.reset_index(drop=True)], axis=1)
+    csv = export_df.to_csv(index=False).encode('utf-8')
+    st.download_button("Download CSV Report", csv, "fellow_report.csv", "text/csv")
