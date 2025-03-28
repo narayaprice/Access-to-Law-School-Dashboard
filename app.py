@@ -29,12 +29,7 @@ if view == "Cohort Overview":
 
     st.header("1. Attendance Distributions")
     boxplot_data = attendance_df[['FSG %', 'Spring Small Group %', 'SA %', 'Total Attendance%']].copy()
-    boxplot_data = boxplot_data.rename(columns={
-        'FSG %': 'FSG (Fall Small Group)',
-        'Spring Small Group %': 'SSG (Spring Small Group)',
-        'SA %': 'SA (Saturday Academy)',
-        'Total Attendance%': 'Total Attendance'
-    })
+    boxplot_data.columns = ['FSG', 'SSG', 'SA', 'Total']
     fig, ax = plt.subplots(figsize=(10, 6))
     sns.boxplot(data=boxplot_data, ax=ax, palette='Blues')
     ax.set_ylabel('Attendance Percentage')
@@ -51,13 +46,11 @@ if view == "Cohort Overview":
     ordered_sessions = sorted([col for col in session_cols if col.startswith('FSG')]) + \
                        sorted([col for col in session_cols if col.startswith('SSG')]) + \
                        sorted([col for col in session_cols if col.startswith('SA')])
-    avg_att = att_data[ordered_sessions].mean().sort_index()
+    avg_att = att_data[ordered_sessions].mean().sort_index() * 100
     fig, ax = plt.subplots(figsize=(16, 5))
     avg_att.plot(kind='bar', ax=ax, color='#00356B')
-    avg_att *= 100
     ax.set_ylabel('Average Attendance (%)')
     ax.set_ylim(0, 100)
-    ax.set_ylim(0, 1)
     st.pyplot(fig)
 
     st.header("4. Stacked Attendance % by Fellow")
@@ -115,23 +108,7 @@ elif view == "Individual Fellow Report":
     fsg_cols = sorted([col for col in att_row.columns if col.startswith('FSG') and not col.endswith('%')])
     ssg_cols = sorted([col for col in att_row.columns if col.startswith('SSG') and not col.endswith('%')])
     sa_cols = sorted([col for col in att_row.columns if col.startswith('SA') and not col.endswith('%')])
-    ordered_session_cols = fsg_cols + ssg_cols + sa_cols
 
-    att_vals = att_row[ordered_session_cols].T.reset_index()
-    att_vals.columns = ['Session', 'Attendance']
-    att_vals['Group'] = att_vals['Session'].apply(lambda x: 'FSG' if x.startswith('FSG') else ('SSG' if x.startswith('SSG') else 'SA'))
-    att_vals['Attendance'] = pd.to_numeric(att_vals['Attendance'], errors='coerce')
-    fig, ax = plt.subplots(figsize=(12, 5))
-    sns.lineplot(data=att_vals, x='Session', y='Attendance', hue='Group', marker='o', ax=ax)
-    ax.set_title(f'{fellow} - Attendance Timeline')
-    ax.set_ylabel('Present (1) / Absent (0)')
-    ax.legend(title='Group')
-    plt.xticks(rotation=45)
-    st.pyplot(fig)
-
-    
-
-    # Separate FSG chart
     if fsg_cols:
         st.subheader("Fall Small Groups (FSG)")
         fsg_vals = att_row[fsg_cols].T.reset_index()
@@ -143,7 +120,6 @@ elif view == "Individual Fellow Report":
         plt.xticks(rotation=45)
         st.pyplot(fig)
 
-    # Separate SSG chart
     if ssg_cols:
         st.subheader("Spring Small Groups (SSG)")
         ssg_vals = att_row[ssg_cols].T.reset_index()
@@ -155,7 +131,6 @@ elif view == "Individual Fellow Report":
         plt.xticks(rotation=45)
         st.pyplot(fig)
 
-    # Separate SA chart
     if sa_cols:
         st.subheader("Saturday Academy (SA)")
         sa_vals = att_row[sa_cols].T.reset_index()
@@ -169,14 +144,22 @@ elif view == "Individual Fellow Report":
 
     st.markdown("---")
 
+    st.header("2. Score Progression")
     pt_order = ['Diagnostic', 'PT 71', 'PT 73', 'PT 136', 'PT 137', 'PT 138', 'PT 139', 'PT 140', 'PT 141', 'PT 144', 'PT 145', 'PT 146', 'PT 147', 'PT 148', 'PT 149']
     available_pts = [pt for pt in pt_order if pt in score_row.columns]
-   score_prog = score_row[available_pts].T
-score_prog.columns = ['Score'] if score_row.shape[0] == 1 else ['Score_' + str(i) for i in range(score_row.shape[0])]
-score_prog = score_prog[['Score']] if 'Score' in score_prog.columns else score_prog.iloc[:, [0]]
+
+    score_prog = score_row[available_pts].T
+    if score_row.shape[0] == 1:
+        score_prog.columns = ['Score']
+    else:
+        score_prog.columns = ['Score_' + str(i) for i in range(score_row.shape[0])]
+        score_prog = score_prog.iloc[:, [0]]
+        score_prog.columns = ['Score']
+
     score_prog = score_prog.reset_index().rename(columns={'index': 'Test'})
     score_prog['Score Change'] = score_prog['Score'].diff()
     score_prog['Rolling Avg'] = score_prog['Score'].rolling(window=3, min_periods=1).mean()
+
     fig, ax = plt.subplots(figsize=(12, 5))
     sns.lineplot(data=score_prog, x='Test', y='Score', marker='o', label='Score', ax=ax)
     sns.lineplot(data=score_prog, x='Test', y='Rolling Avg', linestyle='--', label='3-Test Moving Avg', color='gray', ax=ax)
