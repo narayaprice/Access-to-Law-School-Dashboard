@@ -26,11 +26,16 @@ h1, h2, h3, h4, .stMarkdown, .stText, .css-10trblm, .css-1d391kg {
 
 [data-testid="stSidebar"] {
     background-color: #00356B;
+    padding: 1rem;
 }
-[data-testid="stSidebar"] .css-1v3fvcr,
 [data-testid="stSidebar"] h1,
-[data-testid="stSidebar"] h2 {
-    color: white;
+[data-testid="stSidebar"] h2,
+[data-testid="stSidebar"] span,
+[data-testid="stSidebar"] label,
+[data-testid="stSidebar"] .stMarkdown,
+[data-testid="stSidebar"] .css-1v3fvcr {
+    color: white !important;
+    font-family: 'Merriweather', Georgia, serif !important;
 }
 
 .stButton > button {
@@ -247,3 +252,4 @@ if view == "Individual Fellow Report":
     export_df = pd.concat([att_row.reset_index(drop=True), score_row.reset_index(drop=True)], axis=1)
     csv = export_df.to_csv(index=False).encode('utf-8')
     st.download_button("Download CSV Report", csv, f"{fellow.replace(' ', '_')}_report.csv", "text/csv")
+
