@@ -130,8 +130,8 @@ elif view == "Individual Fellow Report":
     sa  = att_row.filter(like='SA').T.add_suffix('_SA')
 
     full_att = pd.concat([fsg, ssg, sa], axis=1)
-    full_att.columns = ['Attendance']
-    full_att.plot(kind='bar', ax=ax, color="#00356B")
+    full_att_sum = full_att.sum(axis=1).to_frame(name='Attendance')
+    full_att_sum.plot(kind='bar', ax=ax, color="#00356B")
     st.pyplot(fig)
 
     st.subheader("2. Score Progression")
@@ -149,5 +149,3 @@ elif view == "Individual Fellow Report":
     export_df = pd.concat([att_row.reset_index(drop=True), score_row.reset_index(drop=True)], axis=1)
     csv = export_df.to_csv(index=False).encode('utf-8')
     st.download_button("Download CSV Report", csv, "fellow_report.csv", "text/csv")
-
-
