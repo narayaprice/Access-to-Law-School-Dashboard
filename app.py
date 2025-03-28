@@ -123,18 +123,35 @@ elif view == "Individual Fellow Report":
 
     st.subheader("1. Attendance Timeline")
     fig, ax = plt.subplots(figsize=(12, 4))
-    fsg = att_row.filter(like='FSG').T.add_suffix('_FSG')
-ssg = att_row.filter(like='SSG').T.add_suffix('_SSG')
-sa  = att_row.filter(like='SA').T.add_suffix('_SA')
 
-full_att = pd.concat([fsg, ssg, sa], axis=1)
-    full_att.columns = ['Attendance']
-    full_att.plot(kind='bar', ax=ax, color="#00356B")
+    fsg = att_row.filter(like='FSG').T
+    fsg["Group"] = "FSG"
+    ssg = att_row.filter(like='SSG').T
+    ssg["Group"] = "SSG"
+    sa = att_row.filter(like='SA').T
+    sa["Group"] = "SA"
+
+    full_att = pd.concat([fsg, ssg, sa], axis=0)
+    full_att.columns = ["Attendance", "Group"]
+    full_att["Session"] = full_att.index
+    full_att["Attendance"] = pd.to_numeric(full_att["Attendance"], errors="coerce")
+
+    sns.lineplot(data=full_att, x="Session", y="Attendance", hue="Group", marker="o", ax=ax)
+    ax.set_title("Attendance Progression Over Time")
+    ax.legend(title="Group", labels=["FSG = Fall Small Group", "SSG = Spring Small Group", "SA = Saturday Academy"])
+    plt.xticks(rotation=45)
     st.pyplot(fig)
 
     st.subheader("2. Score Progression")
-    if not score_row.empty:
-        scores = score_row[['Diagnostic', 'Approx PB']].T.rename(columns={score_row.index[0]: 'Score'})
+    ordered_scores = [
+        'Diagnostic', 'PT 71', 'PT 73', 'PT 136', 'PT 137', 'PT 138', 'PT 139', 'PT 140',
+        'PT 141', 'PT 144', 'PT 145', 'PT 146', 'PT 147', 'PT 148', 'PT 149'
+    ]
+
+    available_scores = [col for col in ordered_scores if col in score_row.columns]
+
+    if not score_row.empty and available_scores:
+        scores = score_row[available_scores].T.rename(columns={score_row.index[0]: 'Score'})
         st.line_chart(scores)
 
         st.subheader("3. Attendance vs. Score Change")
@@ -147,4 +164,3 @@ full_att = pd.concat([fsg, ssg, sa], axis=1)
     export_df = pd.concat([att_row.reset_index(drop=True), score_row.reset_index(drop=True)], axis=1)
     csv = export_df.to_csv(index=False).encode('utf-8')
     st.download_button("Download CSV Report", csv, "fellow_report.csv", "text/csv")
-
