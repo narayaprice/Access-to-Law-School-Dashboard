@@ -136,6 +136,8 @@ elif view == "Individual Fellow Report":
         sa_vals = att_row[sa_cols].T.reset_index()
         sa_vals.columns = ['Session', 'Attendance']
         sa_vals['Attendance'] = pd.to_numeric(sa_vals['Attendance'], errors='coerce')
+        sa_vals['Session'] = pd.Categorical(sa_vals['Session'], categories=sorted(sa_cols, key=lambda x: int(x.split()[1]) if x.split()[1].isdigit() else x), ordered=True)
+        sa_vals = sa_vals.sort_values('Session')
         fig, ax = plt.subplots(figsize=(12, 3))
         sns.lineplot(data=sa_vals, x='Session', y='Attendance', marker='o', color='orange', ax=ax)
         ax.set_ylabel('Present (1) / Absent (0)')
