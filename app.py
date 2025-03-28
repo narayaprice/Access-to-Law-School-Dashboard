@@ -10,8 +10,8 @@ yale_css = """
 <style>
 body {
     background-color: #f5f5f5;
-    font-family: 'Georgia', serif;
-    color: #212529;
+    font-family: 'Merriweather', Georgia, serif;
+    color: #00356B;
 }
 
 .stApp {
@@ -79,7 +79,7 @@ attendance_df['Full Name'] = attendance_df['First'] + ' ' + attendance_df['Last'
 scores_df['Name'] = scores_df['Fellow First'] + ' ' + scores_df['Fellow Last']
 
 st.sidebar.image("https://law.yale.edu/sites/default/files/styles/content_full_width/public/images/news/accessday1-3381.jpg?itok=6vWWOiBv", use_column_width=True)
-st.sidebar.title("Access to Law School Cohort 4")
+st.sidebar.title("Access to Law School Cohort 4 Data Dashboard")
 view = st.sidebar.selectbox("Choose View", ["Cohort Overview", "Individual Fellow Report"])
 
 if view == "Cohort Overview":
