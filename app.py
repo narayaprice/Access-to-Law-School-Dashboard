@@ -90,10 +90,10 @@ if view == "Cohort Overview":
     st.line_chart(session_means)
 
     st.header("3. Test Score Growth")
-    scores_df = scores_df.rename(columns={"Diagnostic ": "Diagnostic"})
-    scores_df['Score Change'] = scores_df['Approx PB'] - scores_df['Diagnostic ']
+    scores_df = scores_df.rename(columns={"Diagnostic": "Diagnostic"})
+    scores_df['Score Change'] = scores_df['Approx PB'] - scores_df['Diagnostic']
     st.write("Average Score Change:", scores_df['Score Change'].mean())
-    st.bar_chart(scores_df[['Diagnostic ', 'Approx PB']].mean())
+    st.bar_chart(scores_df[['Diagnostic', 'Approx PB']].mean())
 
     st.header("4. Correlation: Attendance vs. Score Change")
     merged = pd.merge(scores_df, attendance_df, left_on="Name", right_on="Full Name")
@@ -135,7 +135,7 @@ elif view == "Individual Fellow Report":
 
         st.subheader("3. Attendance vs. Score Change")
         st.write("Total Attendance %:", att_row['Total Attendance%'].values[0] if 'Total Attendance%' in att_row else 'N/A')
-        st.write("Score Change:", (score_row['Approx PB'].values[0] - score_row['Diagnostic '].values[0]))
+        st.write("Score Change:", (score_row['Approx PB'].values[0] - score_row['Diagnostic'].values[0]))
     else:
         st.warning("No score data found for this fellow.")
 
