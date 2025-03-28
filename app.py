@@ -157,7 +157,8 @@ if view == "Cohort Overview":
     st.pyplot(fig)
 
 st.markdown('</div>', unsafe_allow_html=True)
-elif view == "Individual Fellow Report":
+
+if view == "Individual Fellow Report":
     st.markdown('<div class="section">', unsafe_allow_html=True)
     fellow = st.selectbox("Select Fellow", attendance_df['Full Name'].unique())
     att_row = attendance_df[attendance_df['Full Name'] == fellow]
@@ -246,3 +247,4 @@ elif view == "Individual Fellow Report":
     export_df = pd.concat([att_row.reset_index(drop=True), score_row.reset_index(drop=True)], axis=1)
     csv = export_df.to_csv(index=False).encode('utf-8')
     st.download_button("Download CSV Report", csv, f"{fellow.replace(' ', '_')}_report.csv", "text/csv")
+
