@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import io
 
-st.set_page_config(layout="wide", page_title="YA2LS Dashboard")
+st.set_page_config(layout="wide", page_title="Access to Law School Fellow Data Dashboard")
 
 # Inject custom Yale-inspired CSS
 yale_css = """
@@ -50,7 +50,7 @@ scores_df['Name'] = scores_df['Fellow First'] + ' ' + scores_df['Fellow Last']
 
 # Sidebar with logo and branding
 st.sidebar.image("https://law.yale.edu/sites/default/files/images/YLS_Logo_Blue.png", use_column_width=True)
-st.sidebar.title("YA2LS Dashboard")
+st.sidebar.title("Access to Law School Fellow Data Dashboard")
 
 # Sidebar navigation
 view = st.sidebar.selectbox("Choose View", ["Cohort Overview", "Individual Fellow Report"])
@@ -126,3 +126,4 @@ elif view == "Individual Fellow Report":
     export_df = pd.concat([att_row.reset_index(drop=True), score_row.reset_index(drop=True)], axis=1)
     csv = export_df.to_csv(index=False).encode('utf-8')
     st.download_button("Download CSV Report", csv, "fellow_report.csv", "text/csv")
+
