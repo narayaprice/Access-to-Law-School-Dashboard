@@ -5,7 +5,7 @@ import seaborn as sns
 
 st.set_page_config(layout="wide", page_title="Access to Law School Cohort 4 Data Dashboard")
 
-st.markdown('''
+css = """
 <link href="https://fonts.googleapis.com/css2?family=Merriweather&display=swap" rel="stylesheet">
 <style>
 body {
@@ -58,7 +58,9 @@ h1, h2, h3, h4, .stMarkdown, .stText, .css-10trblm, .css-1d391kg {
     padding-top: 1rem;
 }
 </style>
-''', unsafe_allow_html=True)
+"""
+
+st.markdown(css, unsafe_allow_html=True)
 
 # Inject Yale-style CSS with Google Fonts for Merriweather
 st.markdown("""
