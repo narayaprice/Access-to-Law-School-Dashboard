@@ -12,7 +12,6 @@ yale_css = """
         body {
             font-family: 'Georgia', serif;
             background-color: #f8f9fa;
-        }
         .main > div {
             padding: 2rem;
         }
@@ -164,3 +163,4 @@ elif view == "Individual Fellow Report":
     export_df = pd.concat([att_row.reset_index(drop=True), score_row.reset_index(drop=True)], axis=1)
     csv = export_df.to_csv(index=False).encode('utf-8')
     st.download_button("Download CSV Report", csv, "fellow_report.csv", "text/csv")
+
