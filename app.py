@@ -54,7 +54,9 @@ if view == "Cohort Overview":
     avg_att = att_data[ordered_sessions].mean().sort_index()
     fig, ax = plt.subplots(figsize=(16, 5))
     avg_att.plot(kind='bar', ax=ax, color='#00356B')
+    avg_att *= 100
     ax.set_ylabel('Average Attendance (%)')
+    ax.set_ylim(0, 100)
     ax.set_ylim(0, 1)
     st.pyplot(fig)
 
@@ -102,6 +104,98 @@ if view == "Cohort Overview":
     ax.legend(loc='upper left')
     st.pyplot(fig)
 
-# ... rest of Individual Fellow Report remains unchanged
+elif view == "Individual Fellow Report":
+    fellow = st.selectbox("Select Fellow", attendance_df['Full Name'].unique())
+    att_row = attendance_df[attendance_df['Full Name'] == fellow]
+    score_row = scores_df[scores_df['Name'] == fellow]
+
+    st.title(f"Individual Fellow Report: {fellow}")
+
+    st.header("1. Attendance Timeline")
+    fsg_cols = sorted([col for col in att_row.columns if col.startswith('FSG') and not col.endswith('%')])
+    ssg_cols = sorted([col for col in att_row.columns if col.startswith('SSG') and not col.endswith('%')])
+    sa_cols = sorted([col for col in att_row.columns if col.startswith('SA') and not col.endswith('%')])
+    ordered_session_cols = fsg_cols + ssg_cols + sa_cols
+
+    att_vals = att_row[ordered_session_cols].T.reset_index()
+    att_vals.columns = ['Session', 'Attendance']
+    att_vals['Group'] = att_vals['Session'].apply(lambda x: 'FSG' if x.startswith('FSG') else ('SSG' if x.startswith('SSG') else 'SA'))
+    att_vals['Attendance'] = pd.to_numeric(att_vals['Attendance'], errors='coerce')
+    fig, ax = plt.subplots(figsize=(12, 5))
+    sns.lineplot(data=att_vals, x='Session', y='Attendance', hue='Group', marker='o', ax=ax)
+    ax.set_title(f'{fellow} - Attendance Timeline')
+    ax.set_ylabel('Present (1) / Absent (0)')
+    ax.legend(title='Group')
+    plt.xticks(rotation=45)
+    st.pyplot(fig)
+
+    
+
+    # Separate FSG chart
+    if fsg_cols:
+        st.subheader("Fall Small Groups (FSG)")
+        fsg_vals = att_row[fsg_cols].T.reset_index()
+        fsg_vals.columns = ['Session', 'Attendance']
+        fsg_vals['Attendance'] = pd.to_numeric(fsg_vals['Attendance'], errors='coerce')
+        fig, ax = plt.subplots(figsize=(10, 3))
+        sns.lineplot(data=fsg_vals, x='Session', y='Attendance', marker='o', ax=ax)
+        ax.set_ylabel('Present (1) / Absent (0)')
+        plt.xticks(rotation=45)
+        st.pyplot(fig)
+
+    # Separate SSG chart
+    if ssg_cols:
+        st.subheader("Spring Small Groups (SSG)")
+        ssg_vals = att_row[ssg_cols].T.reset_index()
+        ssg_vals.columns = ['Session', 'Attendance']
+        ssg_vals['Attendance'] = pd.to_numeric(ssg_vals['Attendance'], errors='coerce')
+        fig, ax = plt.subplots(figsize=(10, 3))
+        sns.lineplot(data=ssg_vals, x='Session', y='Attendance', marker='o', color='green', ax=ax)
+        ax.set_ylabel('Present (1) / Absent (0)')
+        plt.xticks(rotation=45)
+        st.pyplot(fig)
+
+    # Separate SA chart
+    if sa_cols:
+        st.subheader("Saturday Academy (SA)")
+        sa_vals = att_row[sa_cols].T.reset_index()
+        sa_vals.columns = ['Session', 'Attendance']
+        sa_vals['Attendance'] = pd.to_numeric(sa_vals['Attendance'], errors='coerce')
+        fig, ax = plt.subplots(figsize=(12, 3))
+        sns.lineplot(data=sa_vals, x='Session', y='Attendance', marker='o', color='orange', ax=ax)
+        ax.set_ylabel('Present (1) / Absent (0)')
+        plt.xticks(rotation=90)
+        st.pyplot(fig)
+
+    st.markdown("---")
+
+    pt_order = ['Diagnostic', 'PT 71', 'PT 73', 'PT 136', 'PT 137', 'PT 138', 'PT 139', 'PT 140', 'PT 141', 'PT 144', 'PT 145', 'PT 146', 'PT 147', 'PT 148', 'PT 149']
+    available_pts = [pt for pt in pt_order if pt in score_row.columns]
+    score_prog = score_row[available_pts].T
+    score_prog.columns = ['Score']
+    score_prog = score_prog.reset_index().rename(columns={'index': 'Test'})
+    score_prog['Score Change'] = score_prog['Score'].diff()
+    score_prog['Rolling Avg'] = score_prog['Score'].rolling(window=3, min_periods=1).mean()
+    fig, ax = plt.subplots(figsize=(12, 5))
+    sns.lineplot(data=score_prog, x='Test', y='Score', marker='o', label='Score', ax=ax)
+    sns.lineplot(data=score_prog, x='Test', y='Rolling Avg', linestyle='--', label='3-Test Moving Avg', color='gray', ax=ax)
+    for i, row in score_prog.iterrows():
+        if pd.notna(row['Score Change']) and abs(row['Score Change']) >= 5:
+            ax.text(i, row['Score'] + 1, f"{row['Score Change']:+.0f}", color='green' if row['Score Change'] > 0 else 'red')
+    ax.set_title(f'{fellow} - Score Progression with Rolling Average')
+    ax.set_ylabel('Score')
+    plt.xticks(rotation=45)
+    ax.legend()
+    st.pyplot(fig)
+
+    st.header("3. Summary")
+    st.write("Total Attendance %:", float(att_row['Total Attendance%']))
+    if not score_row.empty:
+        st.write("Score Change:", float(score_row['Approx PB']) - float(score_row['Diagnostic']))
+
+    st.header("4. Download Report")
+    export_df = pd.concat([att_row.reset_index(drop=True), score_row.reset_index(drop=True)], axis=1)
+    csv = export_df.to_csv(index=False).encode('utf-8')
+    st.download_button("Download CSV Report", csv, f"{fellow.replace(' ', '_')}_report.csv", "text/csv")
 
 
