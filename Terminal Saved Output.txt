@@ -1,0 +1,47 @@
+Last login: Thu Mar 27 19:37:13 on ttys000
+narayaprice@Narayas-MacBook-Pro access-to-law-school-dashboard % 
+narayaprice@Narayas-MacBook-Pro access-to-law-school-dashboard % git add requirements.txt
+xcode-select: note: No developer tools were found, requesting install.
+If developer tools are located at a non-default location on disk, use `sudo xcode-select --switch path/to/Xcode.app` to specify the Xcode that you wish to use for command line developer tools, and cancel the installation dialog.
+See `man xcode-select` for more details.
+narayaprice@Narayas-MacBook-Pro access-to-law-school-dashboard % git commit -m "Add seaborn for dashboard visuals"
+fatal: not a git repository (or any of the parent directories): .git
+narayaprice@Narayas-MacBook-Pro access-to-law-school-dashboard % git init
+Initialized empty Git repository in /Users/narayaprice/Desktop/access-to-law-school-dashboard/.git/
+narayaprice@Narayas-MacBook-Pro access-to-law-school-dashboard % git remote add originhttps://github.com/narayaprice/Access-to-Law-School-Dashboard.git
+usage: git remote add [<options>] <name> <url>
+
+    -f, --fetch           fetch the remote branches
+    --tags                import all tags and associated objects when fetching
+                          or do not fetch any tag at all (--no-tags)
+    -t, --track <branch>  branch(es) to track
+    -m, --master <branch>
+                          master branch
+    --mirror[=(push|fetch)]
+                          set up remote as a mirror to push to or fetch from
+
+narayaprice@Narayas-MacBook-Pro access-to-law-school-dashboard % git remote remove origin
+error: No such remote: 'origin'
+narayaprice@Narayas-MacBook-Pro access-to-law-school-dashboard % git remote add origin https://github.com/narayaprice/Access-to-Law-School-Dashboard.git
+narayaprice@Narayas-MacBook-Pro access-to-law-school-dashboard % git add requirements.txt
+git commit -m "Add seaborn for dashboard visuals"
+[main (root-commit) 4d6eb42] Add seaborn for dashboard visuals
+ Committer: Naraya Price <narayaprice@Narayas-MacBook-Pro.local>
+Your name and email address were configured automatically based
+on your username and hostname. Please check that they are accurate.
+You can suppress this message by setting them explicitly. Run the
+following command and follow the instructions in your editor to edit
+your configuration file:
+
+    git config --global --edit
+
+After doing this, you may fix the identity used for this commit with:
+
+    git commit --amend --reset-author
+
+ 1 file changed, 5 insertions(+)
+ create mode 100644 requirements.txt
+narayaprice@Narayas-MacBook-Pro access-to-law-school-dashboard % git branch -M main
+git push -u origin main
+Username for 'https://github.com': narayaprice
+Password for 'https://narayaprice@github.com': 
