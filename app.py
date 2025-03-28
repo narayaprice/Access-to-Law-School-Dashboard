@@ -5,6 +5,64 @@ import seaborn as sns
 
 st.set_page_config(layout="wide", page_title="Access to Law School Cohort 4 Data Dashboard")
 
+# Inject Yale-style CSS
+yale_css = """
+<style>
+body {
+    background-color: #f5f5f5;
+    font-family: 'Georgia', serif;
+    color: #212529;
+}
+
+.stApp {
+    padding: 2rem;
+}
+
+h1, h2, h3, h4 {
+    color: #00356B;
+    font-weight: bold;
+    margin-bottom: 0.75rem;
+}
+
+[data-testid="stSidebar"] {
+    background-color: #00356B;
+}
+[data-testid="stSidebar"] .css-1v3fvcr,
+[data-testid="stSidebar"] h1,
+[data-testid="stSidebar"] h2 {
+    color: white;
+}
+
+.stButton > button {
+    background-color: #00356B;
+    color: white;
+    font-weight: bold;
+    border-radius: 6px;
+    padding: 0.5rem 1rem;
+}
+.stDownloadButton > button {
+    background-color: #286DC0;
+    color: white;
+    font-weight: bold;
+    border-radius: 6px;
+    padding: 0.5rem 1rem;
+}
+
+.section {
+    background-color: white;
+    padding: 1.5rem 2rem;
+    border-radius: 12px;
+    margin-bottom: 2rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.block-container {
+    padding-top: 1rem;
+}
+</style>
+"""
+st.markdown(yale_css, unsafe_allow_html=True)
+
 @st.cache_data
 
 def load_data():
@@ -25,6 +83,7 @@ st.sidebar.title("Access to Law School Cohort 4")
 view = st.sidebar.selectbox("Choose View", ["Cohort Overview", "Individual Fellow Report"])
 
 if view == "Cohort Overview":
+    st.markdown('<div class="section">', unsafe_allow_html=True)
     st.title("Cohort Overview")
 
     st.header("1. Attendance Distributions")
@@ -97,7 +156,9 @@ if view == "Cohort Overview":
     ax.legend(loc='upper left')
     st.pyplot(fig)
 
+st.markdown('</div>', unsafe_allow_html=True)
 elif view == "Individual Fellow Report":
+    st.markdown('<div class="section">', unsafe_allow_html=True)
     fellow = st.selectbox("Select Fellow", attendance_df['Full Name'].unique())
     att_row = attendance_df[attendance_df['Full Name'] == fellow]
     score_row = scores_df[scores_df['Name'] == fellow]
@@ -181,6 +242,7 @@ elif view == "Individual Fellow Report":
         st.write("Score Change:", float(score_row['Approx PB']) - float(score_row['Diagnostic']))
 
     st.header("4. Download Report")
+    st.markdown('</div>', unsafe_allow_html=True)
     export_df = pd.concat([att_row.reset_index(drop=True), score_row.reset_index(drop=True)], axis=1)
     csv = export_df.to_csv(index=False).encode('utf-8')
     st.download_button("Download CSV Report", csv, f"{fellow.replace(' ', '_')}_report.csv", "text/csv")
