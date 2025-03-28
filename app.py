@@ -171,8 +171,9 @@ elif view == "Individual Fellow Report":
 
     pt_order = ['Diagnostic', 'PT 71', 'PT 73', 'PT 136', 'PT 137', 'PT 138', 'PT 139', 'PT 140', 'PT 141', 'PT 144', 'PT 145', 'PT 146', 'PT 147', 'PT 148', 'PT 149']
     available_pts = [pt for pt in pt_order if pt in score_row.columns]
-    score_prog = score_row[available_pts].T
-    score_prog.columns = ['Score']
+   score_prog = score_row[available_pts].T
+score_prog.columns = ['Score'] if score_row.shape[0] == 1 else ['Score_' + str(i) for i in range(score_row.shape[0])]
+score_prog = score_prog[['Score']] if 'Score' in score_prog.columns else score_prog.iloc[:, [0]]
     score_prog = score_prog.reset_index().rename(columns={'index': 'Test'})
     score_prog['Score Change'] = score_prog['Score'].diff()
     score_prog['Rolling Avg'] = score_prog['Score'].rolling(window=3, min_periods=1).mean()
