@@ -145,35 +145,35 @@ elif view == "Individual Fellow Report":
     st.markdown("---")
 
     if not score_row.empty and any(pt in score_row.columns for pt in ['Diagnostic', 'PT 71', 'PT 73', 'PT 136', 'PT 137', 'PT 138', 'PT 139', 'PT 140', 'PT 141', 'PT 144', 'PT 145', 'PT 146', 'PT 147', 'PT 148', 'PT 149']):
-    st.header("2. Score Progression")
-    pt_order = ['Diagnostic', 'PT 71', 'PT 73', 'PT 136', 'PT 137', 'PT 138',
-                'PT 139', 'PT 140', 'PT 141', 'PT 144', 'PT 145', 'PT 146',
-                'PT 147', 'PT 148', 'PT 149']
-    available_pts = [pt for pt in pt_order if pt in score_row.columns and pd.notnull(score_row.iloc[0][pt])]
+        st.header("2. Score Progression")
+        pt_order = ['Diagnostic', 'PT 71', 'PT 73', 'PT 136', 'PT 137', 'PT 138',
+                    'PT 139', 'PT 140', 'PT 141', 'PT 144', 'PT 145', 'PT 146',
+                    'PT 147', 'PT 148', 'PT 149']
+        available_pts = [pt for pt in pt_order if pt in score_row.columns and pd.notnull(score_row.iloc[0][pt])]
 
-    if available_pts:
-        score_prog = score_row.iloc[0][available_pts].T.to_frame(name='Score').reset_index()
-        score_prog = score_prog.rename(columns={'index': 'Test'})
-        score_prog['Score Change'] = score_prog['Score'].diff()
-        score_prog['Rolling Avg'] = score_prog['Score'].rolling(window=3, min_periods=1).mean()
+        if available_pts:
+            score_prog = score_row.iloc[0][available_pts].T.to_frame(name='Score').reset_index()
+            score_prog = score_prog.rename(columns={'index': 'Test'})
+            score_prog['Score Change'] = score_prog['Score'].diff()
+            score_prog['Rolling Avg'] = score_prog['Score'].rolling(window=3, min_periods=1).mean()
 
-        fig, ax = plt.subplots(figsize=(12, 5))
-        sns.lineplot(data=score_prog, x='Test', y='Score', marker='o', label='Score', ax=ax)
-        sns.lineplot(data=score_prog, x='Test', y='Rolling Avg', linestyle='--', label='3-Test Moving Avg', color='gray', ax=ax)
-        for i, row in score_prog.iterrows():
-            if pd.notna(row['Score Change']) and abs(row['Score Change']) >= 5:
-                ax.text(i, row['Score'] + 1, f"{row['Score Change']:+.0f}", color='green' if row['Score Change'] > 0 else 'red')
-        ax.set_title(f'{fellow} - Score Progression with Rolling Average')
-        ax.set_ylabel('Score')
-        plt.xticks(rotation=45)
-        ax.legend()
-        st.pyplot(fig)
+            fig, ax = plt.subplots(figsize=(12, 5))
+            sns.lineplot(data=score_prog, x='Test', y='Score', marker='o', label='Score', ax=ax)
+            sns.lineplot(data=score_prog, x='Test', y='Rolling Avg', linestyle='--', label='3-Test Moving Avg', color='gray', ax=ax)
+            for i, row in score_prog.iterrows():
+                if pd.notna(row['Score Change']) and abs(row['Score Change']) >= 5:
+                    ax.text(i, row['Score'] + 1, f"{row['Score Change']:+.0f}", color='green' if row['Score Change'] > 0 else 'red')
+            ax.set_title(f'{fellow} - Score Progression with Rolling Average')
+            ax.set_ylabel('Score')
+            plt.xticks(rotation=45)
+            ax.legend()
+            st.pyplot(fig)
+        else:
+            st.warning("No valid score data available for this fellow.")
     else:
-        st.warning("No valid score data available for this fellow.")
-else:
-    st.warning("No score data available for this fellow.")
+        st.warning("No score data available for this fellow.")
 
-st.header("3. Summary")
+    st.header("3. Summary")
     st.write("Total Attendance %:", float(att_row['Total Attendance%']))
     if not score_row.empty:
         st.write("Score Change:", float(score_row['Approx PB']) - float(score_row['Diagnostic']))
