@@ -130,7 +130,7 @@ elif view == "Individual Fellow Report":
 
     st.subheader("2. Score Progression")
     if not score_row.empty:
-        scores = score_row[['Diagnostic ', 'Approx PB']].T.rename(columns={score_row.index[0]: 'Score'})
+        scores = score_row[['Diagnostic', 'Approx PB']].T.rename(columns={score_row.index[0]: 'Score'})
         st.line_chart(scores)
 
         st.subheader("3. Attendance vs. Score Change")
