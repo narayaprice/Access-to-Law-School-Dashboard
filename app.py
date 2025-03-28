@@ -123,11 +123,13 @@ elif view == "Individual Fellow Report":
 
     st.subheader("1. Attendance Timeline")
     fig, ax = plt.subplots(figsize=(12, 4))
-    fsg = att_row.filter(like='FSG').T.add_suffix('_FSG')
-ssg = att_row.filter(like='SSG').T.add_suffix('_SSG')
-sa  = att_row.filter(like='SA').T.add_suffix('_SA')
 
-full_att = pd.concat([fsg, ssg, sa], axis=1)
+    # Safely extract and label attendance components to avoid column overlap
+    fsg = att_row.filter(like='FSG').T.add_suffix('_FSG')
+    ssg = att_row.filter(like='SSG').T.add_suffix('_SSG')
+    sa  = att_row.filter(like='SA').T.add_suffix('_SA')
+
+    full_att = pd.concat([fsg, ssg, sa], axis=1)
     full_att.columns = ['Attendance']
     full_att.plot(kind='bar', ax=ax, color="#00356B")
     st.pyplot(fig)
@@ -147,4 +149,5 @@ full_att = pd.concat([fsg, ssg, sa], axis=1)
     export_df = pd.concat([att_row.reset_index(drop=True), score_row.reset_index(drop=True)], axis=1)
     csv = export_df.to_csv(index=False).encode('utf-8')
     st.download_button("Download CSV Report", csv, "fellow_report.csv", "text/csv")
+
 
