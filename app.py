@@ -6,7 +6,7 @@ import seaborn as sns
 st.set_page_config(layout="wide", page_title="Access to Law School Cohort 4 Data Dashboard")
 
 # Inject Yale-style CSS with Google Fonts for Merriweather
-yale_css = """
+st.markdown("""
 <link href="https://fonts.googleapis.com/css2?family=Merriweather&display=swap" rel="stylesheet">
 <style>
 body {
@@ -65,8 +65,7 @@ h1, h2, h3, h4, .stMarkdown, .stText, .css-10trblm, .css-1d391kg {
     padding-top: 1rem;
 }
 </style>
-"""
-st.markdown(yale_css, unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
 @st.cache_data
 
@@ -252,4 +251,5 @@ if view == "Individual Fellow Report":
     export_df = pd.concat([att_row.reset_index(drop=True), score_row.reset_index(drop=True)], axis=1)
     csv = export_df.to_csv(index=False).encode('utf-8')
     st.download_button("Download CSV Report", csv, f"{fellow.replace(' ', '_')}_report.csv", "text/csv")
+
 
