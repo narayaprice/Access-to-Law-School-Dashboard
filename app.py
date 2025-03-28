@@ -62,6 +62,8 @@ h1, h2, h3, h4, .stMarkdown, .stText, .css-10trblm, .css-1d391kg {
 
 st.markdown(css, unsafe_allow_html=True)
 
+st.markdown(css, unsafe_allow_html=True)
+
 # Inject Yale-style CSS with Google Fonts for Merriweather
 st.markdown("""
 <link href="https://fonts.googleapis.com/css2?family=Merriweather&display=swap" rel="stylesheet">
@@ -308,4 +310,5 @@ if view == "Individual Fellow Report":
     export_df = pd.concat([att_row.reset_index(drop=True), score_row.reset_index(drop=True)], axis=1)
     csv = export_df.to_csv(index=False).encode('utf-8')
     st.download_button("Download CSV Report", csv, f"{fellow.replace(' ', '_')}_report.csv", "text/csv")
+
 
