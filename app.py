@@ -123,7 +123,11 @@ elif view == "Individual Fellow Report":
 
     st.subheader("1. Attendance Timeline")
     fig, ax = plt.subplots(figsize=(12, 4))
-    full_att = att_row.filter(like='FSG').T.join(att_row.filter(like='SSG').T).join(att_row.filter(like='SA').T)
+    fsg = att_row.filter(like='FSG').T.add_suffix('_FSG')
+ssg = att_row.filter(like='SSG').T.add_suffix('_SSG')
+sa  = att_row.filter(like='SA').T.add_suffix('_SA')
+
+full_att = pd.concat([fsg, ssg, sa], axis=1)
     full_att.columns = ['Attendance']
     full_att.plot(kind='bar', ax=ax, color="#00356B")
     st.pyplot(fig)
