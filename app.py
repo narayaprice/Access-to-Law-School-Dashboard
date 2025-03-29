@@ -96,4 +96,3 @@ elif view == "Individual Fellow Report":
         st.warning("Attendance chart unavailable for this fellow.")
 
 
-
