@@ -77,18 +77,6 @@ attendance_df, scores_df = load_data()
 attendance_df.columns = attendance_df.columns.str.strip()
 scores_df.columns = scores_df.columns.str.strip()
 
-required_attendance_cols = ['Session Date', 'Attended', 'First', 'Last']
-missing_attendance_cols = [col for col in required_attendance_cols if col not in attendance_df.columns]
-if missing_attendance_cols:
-    st.error(f"Missing columns in Attendance sheet: {missing_attendance_cols}")
-    st.stop()
-
-required_score_cols = ['Fellow First', 'Fellow Last']
-missing_score_cols = [col for col in required_score_cols if col not in scores_df.columns]
-if missing_score_cols:
-    st.error(f"Missing columns in Test Scores sheet: {missing_score_cols}")
-    st.stop()
-
 attendance_df['Full Name'] = attendance_df['First'] + ' ' + attendance_df['Last']
 scores_df['Name'] = scores_df['Fellow First'] + ' ' + scores_df['Fellow Last']
 scores_df = scores_df.apply(pd.to_numeric, errors='ignore')
