@@ -73,12 +73,24 @@ def load_data():
 
 attendance_df, scores_df = load_data()
 
+# Clean and validate columns
 attendance_df.columns = attendance_df.columns.str.strip()
 scores_df.columns = scores_df.columns.str.strip()
+
+required_attendance_cols = ['Session Date', 'Attended', 'First', 'Last']
+missing_attendance_cols = [col for col in required_attendance_cols if col not in attendance_df.columns]
+if missing_attendance_cols:
+    st.error(f"Missing columns in Attendance sheet: {missing_attendance_cols}")
+    st.stop()
+
+required_score_cols = ['Fellow First', 'Fellow Last']
+missing_score_cols = [col for col in required_score_cols if col not in scores_df.columns]
+if missing_score_cols:
+    st.error(f"Missing columns in Test Scores sheet: {missing_score_cols}")
+    st.stop()
+
 attendance_df['Full Name'] = attendance_df['First'] + ' ' + attendance_df['Last']
 scores_df['Name'] = scores_df['Fellow First'] + ' ' + scores_df['Fellow Last']
-
-# Convert score columns to numeric where possible
 scores_df = scores_df.apply(pd.to_numeric, errors='ignore')
 
 st.sidebar.image("https://law.yale.edu/sites/default/files/styles/content_full_width/public/images/news/accessday1-3381.jpg?itok=6vWWOiBv", use_container_width=True)
@@ -86,7 +98,11 @@ st.sidebar.title("Access to Law School Cohort 4 Data Dashboard")
 view = st.sidebar.selectbox("Choose View", ["Cohort Overview", "Individual Fellow Report"])
 
 if view == "Cohort Overview":
-    st.markdown("## Cohort Overview", unsafe_allow_html=True)
+    st.markdown("""
+    <div style='margin-bottom: 2rem;'>
+        <h2>Cohort Overview</h2>
+    </div>
+    """, unsafe_allow_html=True)
 
     with st.container():
         st.markdown("### Attendance Summary", unsafe_allow_html=True)
