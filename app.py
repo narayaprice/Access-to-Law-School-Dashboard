@@ -14,7 +14,7 @@ df_scores = df_dict["Test Scores"]
 # ----- Define Attendance Column Names (all binary: 0 = not present, 1 = present) -----
 fall_col   = "Fall Small Group Attendance %"
 spring_col = "Spring Small Group Attendance %"
-small_group_total_col = "Total Small Group Attendance $"
+small_group_total_col = "Total Small Group Attendance"
 sa_col     = "SA %"
 total_attendance_col = "Total Attendance %"
 
@@ -27,7 +27,6 @@ for col in required_cols:
 has_attendance_fellow = "Fellow" in df_attendance.columns
 
 # ----- Process Test Scores Data -----
-# Test Scores sheet must include a "Fellow" column and the following test columns.
 score_columns = ["Diagnostic", "PT 71", "PT 73", "PT136", "PT 137", "PT 138", 
                  "PT 139", "PT 140", "PT 141", "PT 144", "PT 145", "PT 146", 
                  "PT 147", "PT 148", "PT 149"]
@@ -35,7 +34,7 @@ score_columns = ["Diagnostic", "PT 71", "PT 73", "PT136", "PT 137", "PT 138",
 if "Fellow" not in df_scores.columns:
     raise Exception("Required column 'Fellow' not found in Test Scores sheet.")
 
-# Melt the test scores into long format for plotting trends.
+# Melt test scores into long format.
 scores_long = df_scores.melt(
     id_vars="Fellow",
     value_vars=score_columns,
@@ -44,7 +43,7 @@ scores_long = df_scores.melt(
 )
 scores_long["Test"] = pd.Categorical(scores_long["Test"], categories=score_columns, ordered=True)
 
-# Compute LSAT score improvement for each fellow.
+# Compute LSAT score improvement.
 df_scores["Score_Improvement"] = df_scores["PT 149"] - df_scores["Diagnostic"]
 
 # If Attendance_New doesn’t have "Fellow", assign it from Test Scores by row order.
@@ -53,7 +52,7 @@ if not has_attendance_fellow:
 
 attendance_by_fellow = df_attendance.copy()
 
-# Merge attendance with test scores for the comparison scatter plot.
+# Merge attendance with test scores for comparison scatter plot.
 comparison_df = pd.merge(
     df_scores[["Fellow", "Score_Improvement"]],
     attendance_by_fellow[["Fellow", total_attendance_col]],
@@ -64,7 +63,6 @@ comparison_df = pd.merge(
 # ======================================================
 # Create Cohort Overview Charts
 # ======================================================
-# Because the attendance columns are binary, we create bar charts showing the counts for 0’s vs. 1’s.
 def create_binary_bar_chart(df, column, title):
     counts = df[column].value_counts().reset_index()
     counts.columns = [column, "Count"]
@@ -77,7 +75,6 @@ fig_small_group_total = create_binary_bar_chart(df_attendance, small_group_total
 fig_sa = create_binary_bar_chart(df_attendance, sa_col, "SA % Distribution")
 fig_total_attendance = create_binary_bar_chart(df_attendance, total_attendance_col, "Total Attendance % Distribution")
 
-# Scatter plot: Total Attendance % vs. LSAT Score Improvement
 fig_comparison = px.scatter(
     comparison_df,
     x=total_attendance_col,
@@ -86,7 +83,6 @@ fig_comparison = px.scatter(
     title="LSAT Score Improvement vs. Total Attendance %"
 )
 
-# Average LSAT scores over test events (across the cohort)
 avg_scores = scores_long.groupby("Test", as_index=False).mean()
 fig_scores = px.line(
     avg_scores,
@@ -96,7 +92,6 @@ fig_scores = px.line(
     markers=True
 )
 
-# Helper function to apply Yale-inspired styling.
 def style_chart(fig):
     fig.update_layout(
         title_font=dict(family="Georgia, serif", color="#0a2240"),
@@ -167,4 +162,51 @@ def render_content(tab):
                     clearable=False
                 )
             ], style={"width": "50%", "margin": "auto", "paddingBottom": "20px"}),
+            dcc.Graph(id="individual-attendance-chart"),
+            dcc.Graph(id="individual-scores-chart")
+        ], style={"margin": "20px"})
 
+@app.callback(
+    [Output("individual-attendance-chart", "figure"),
+     Output("individual-scores-chart", "figure")],
+    Input("fellow-dropdown", "value")
+)
+def update_individual_charts(selected_fellow):
+    if has_attendance_fellow:
+        att_row = df_attendance[df_attendance["Fellow"] == selected_fellow].iloc[0]
+        att_data = {
+            "Attendance Type": [
+                "Fall Small Group Attendance %",
+                "Spring Small Group Attendance %",
+                "Total Small Group Attendance",
+                "SA %",
+                "Total Attendance %"
+            ],
+            "Value": [
+                att_row[fall_col],
+                att_row[spring_col],
+                att_row[small_group_total_col],
+                att_row[sa_col],
+                att_row[total_attendance_col]
+            ]
+        }
+        fig_att = px.bar(att_data, x="Attendance Type", y="Value", title=f"Attendance for {selected_fellow}")
+        fig_att = style_chart(fig_att)
+    else:
+        fig_att = px.bar(title="Attendance data not available for individuals.")
+        fig_att = style_chart(fig_att)
+    
+    df_scores_fellow = scores_long[scores_long["Fellow"] == selected_fellow]
+    fig_scores_ind = px.line(
+        df_scores_fellow,
+        x="Test",
+        y="Score",
+        title=f"LSAT Scores Trend for {selected_fellow}",
+        markers=True
+    )
+    fig_scores_ind = style_chart(fig_scores_ind)
+    
+    return fig_att, fig_scores_ind
+
+if __name__ == '__main__':
+    app.run_server(debug=True)
