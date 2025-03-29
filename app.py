@@ -5,7 +5,7 @@ import seaborn as sns
 
 st.set_page_config(layout="wide", page_title="Access to Law School Cohort 4 Data Dashboard")
 
-# Define the CSS in a variable
+# Custom CSS for styling
 css = """
 <link href="https://fonts.googleapis.com/css2?family=Merriweather&display=swap" rel="stylesheet">
 <style>
@@ -13,10 +13,6 @@ body {
     background-color: #f5f5f5;
     font-family: 'Merriweather', Georgia, serif;
     color: #00356B;
-}
-h1, h2, h3, h4, .stMarkdown, .stText, .css-10trblm, .css-1d391kg {
-    color: #00356B !important;
-    font-family: 'Merriweather', Georgia, serif !important;
 }
 .stApp {
     padding: 2rem;
@@ -29,20 +25,12 @@ h1, h2, h3, h4, .stMarkdown, .stText, .css-10trblm, .css-1d391kg {
 [data-testid="stSidebar"] h2,
 [data-testid="stSidebar"] span,
 [data-testid="stSidebar"] label,
-[data-testid="stSidebar"] .stMarkdown,
-[data-testid="stSidebar"] .css-1v3fvcr {
+[data-testid="stSidebar"] .stMarkdown {
     color: white !important;
     font-family: 'Merriweather', Georgia, serif !important;
 }
-.stButton > button {
+.stButton > button, .stDownloadButton > button {
     background-color: #00356B;
-    color: white;
-    font-weight: bold;
-    border-radius: 6px;
-    padding: 0.5rem 1rem;
-}
-.stDownloadButton > button {
-    background-color: #286DC0;
     color: white;
     font-weight: bold;
     border-radius: 6px;
@@ -60,8 +48,6 @@ h1, h2, h3, h4, .stMarkdown, .stText, .css-10trblm, .css-1d391kg {
 }
 </style>
 """
-
-# Apply the CSS styles
 st.markdown(css, unsafe_allow_html=True)
 
 @st.cache_data
@@ -73,35 +59,30 @@ def load_data():
 
 attendance_df, scores_df = load_data()
 
-# Clean and validate columns
 attendance_df.columns = attendance_df.columns.str.strip()
 scores_df.columns = scores_df.columns.str.strip()
 
+# Create name columns
 attendance_df['Full Name'] = attendance_df['First'] + ' ' + attendance_df['Last']
 scores_df['Name'] = scores_df['Fellow First'] + ' ' + scores_df['Fellow Last']
 scores_df = scores_df.apply(pd.to_numeric, errors='ignore')
 
+# Sidebar
 st.sidebar.image("https://law.yale.edu/sites/default/files/styles/content_full_width/public/images/news/accessday1-3381.jpg?itok=6vWWOiBv", use_container_width=True)
 st.sidebar.title("Access to Law School Cohort 4 Data Dashboard")
 view = st.sidebar.selectbox("Choose View", ["Cohort Overview", "Individual Fellow Report"])
 
+# --- COHORT OVERVIEW ---
 if view == "Cohort Overview":
-    st.markdown("""
-    <div style='margin-bottom: 2rem;'>
-        <h2>Cohort Overview</h2>
-    </div>
-    """, unsafe_allow_html=True)
+    st.title("Cohort Overview")
 
     with st.container():
         st.markdown("### Attendance Summary", unsafe_allow_html=True)
-        attendance_summary = attendance_df.groupby('Full Name').agg({
-            'Session Date': pd.Series.nunique,
-            'Attended': lambda x: (x == 'Yes').sum()
-        }).rename(columns={'Session Date': 'Total Sessions', 'Attended': 'Sessions Attended'})
-        attendance_summary['Attendance Rate (%)'] = (attendance_summary['Sessions Attended'] / attendance_summary['Total Sessions'] * 100).round(1)
+        attendance_summary = attendance_df[['Full Name', 'FSG %', 'SSG %', 'SA %', 'Total Attendance%']].copy()
+        attendance_summary = attendance_summary.set_index('Full Name')
 
-        st.metric("Average Attendance Rate", f"{attendance_summary['Attendance Rate (%)'].mean():.1f}%")
-        st.dataframe(attendance_summary.sort_values(by="Attendance Rate (%)", ascending=False), use_container_width=True)
+        st.metric("Average Attendance Rate", f"{attendance_summary['Total Attendance%'].mean():.1f}%")
+        st.dataframe(attendance_summary.sort_values(by='Total Attendance%', ascending=False), use_container_width=True)
 
     with st.container():
         st.markdown("### Test Score Trends", unsafe_allow_html=True)
@@ -123,8 +104,9 @@ if view == "Cohort Overview":
             mime="text/csv"
         )
 
+# --- INDIVIDUAL REPORT ---
 elif view == "Individual Fellow Report":
-    st.markdown("## Individual Fellow Report", unsafe_allow_html=True)
+    st.title("Individual Fellow Report")
     selected_fellow = st.selectbox("Select Fellow", sorted(attendance_df['Full Name'].unique()))
 
     fellow_attendance = attendance_df[attendance_df['Full Name'] == selected_fellow]
@@ -132,11 +114,9 @@ elif view == "Individual Fellow Report":
 
     with st.container():
         st.markdown(f"### Attendance for {selected_fellow}", unsafe_allow_html=True)
-        st.dataframe(fellow_attendance[['Session Date', 'Attended']], use_container_width=True)
-        total_sessions = fellow_attendance['Session Date'].nunique()
-        attended_sessions = (fellow_attendance['Attended'] == 'Yes').sum()
-        attendance_rate = round((attended_sessions / total_sessions) * 100, 1) if total_sessions > 0 else 0
-        st.metric(label="Attendance Rate (%)", value=attendance_rate)
+        attendance_details = fellow_attendance[['FSG %', 'SSG %', 'SA %', 'Total Attendance%']].T
+        attendance_details.columns = ["%"]
+        st.dataframe(attendance_details)
 
     with st.container():
         st.markdown(f"### Test Scores for {selected_fellow}", unsafe_allow_html=True)
@@ -150,17 +130,14 @@ elif view == "Individual Fellow Report":
 
     with st.container():
         st.markdown("### Download Fellow Report", unsafe_allow_html=True)
-        output_df = pd.merge(
-            fellow_attendance[['Session Date', 'Attended']].reset_index(drop=True),
-            fellow_scores_melted[['Test', 'Score']].reset_index(drop=True),
-            how='outer',
-            left_index=True, right_index=True
-        )
+        output_df = pd.concat([
+            attendance_details.reset_index().rename(columns={'index': 'Metric'}),
+            fellow_scores_melted[['Test', 'Score']]
+        ], axis=0, ignore_index=True)
         st.download_button(
             label="Download Report as CSV",
             data=output_df.to_csv(index=False).encode('utf-8'),
             file_name=f"{selected_fellow}_report.csv",
             mime="text/csv"
         )
-
 
