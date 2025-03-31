@@ -64,7 +64,7 @@ for col in [fall_col, spring_col, sa_col, total_attendance_col]:
 
 df_attendance[total_attendance_col] = pd.to_numeric(df_attendance[total_attendance_col], errors="coerce")
 
-# Create long-format DataFrame for the summary attendance charts.
+# Create long-format DataFrame for summary attendance charts.
 attendance_chart_df = pd.melt(
     df_attendance,
     id_vars=[attendance_fellow_col],
@@ -72,14 +72,16 @@ attendance_chart_df = pd.melt(
     var_name="Attendance Type",
     value_name="Attendance"
 )
+# Map attendance column names to the desired legend labels.
 attendance_chart_df["Attendance Type"] = attendance_chart_df["Attendance Type"].map({
-    fall_col: "FSG",
-    spring_col: "SSG",
-    sa_col: "SA"
+    fall_col: "FSG = Fall Small Group",
+    spring_col: "SSG = Spring Small Group",
+    sa_col: "SA = Saturday Academy"
 })
 
 # -------------------- Detailed Attendance Events --------------------
-# Automatically detect additional attendance columns starting with FSG, SSG, or SA (excluding summary columns).
+# Automatically detect any additional attendance columns starting with "FSG", "SSG", or "SA"
+# that are not already used.
 detailed_attendance_cols = [
     col for col in df_attendance.columns 
     if col not in [fall_col, spring_col, sa_col, total_attendance_col, attendance_fellow_col]
@@ -94,7 +96,7 @@ if detailed_attendance_cols:
         var_name="Event",
         value_name="Attendance"
     )
-    # Order events if needed; here we simply sort alphabetically.
+    # If you wish, you can define an ordering here. For now, we'll sort alphabetically.
     event_order = sorted(detailed_attendance_long["Event"].unique())
     detailed_attendance_long["Event"] = pd.Categorical(detailed_attendance_long["Event"],
                                                        categories=event_order,
@@ -128,7 +130,8 @@ scores_long["Test"] = pd.Categorical(scores_long["Test"], categories=existing_sc
 
 df_scores["Score_Improvement"] = df_scores["PT 149"] - df_scores["Diagnostic"]
 
-# -------------------- LSAT Trajectory Chart for All Fellows --------------------
+# -------------------- Cohort Overview Charts --------------------
+# LSAT Trajectory Chart for All Fellows.
 fig_trajectories = px.line(
     scores_long,
     x="Test",
@@ -147,7 +150,7 @@ fig_trajectories.add_trace(go.Scatter(
     line=dict(color="#004c99", width=4)
 ))
 
-# -------------------- LSAT Growth for Fellows with >75% Attendance --------------------
+# LSAT Growth for Fellows with >75% Attendance.
 high_attendance = df_attendance[df_attendance[total_attendance_col] > 75]
 high_attendance_scores = pd.merge(
     high_attendance[[attendance_fellow_col, total_attendance_col]],
@@ -166,7 +169,7 @@ fig_growth_high = px.bar(
     color_discrete_sequence=px.colors.sequential.Blues
 )
 
-# -------------------- Average LSAT Scores Over Test Events --------------------
+# Average LSAT Scores Over Test Events.
 avg_scores = scores_long.groupby("Test", as_index=False)["Score"].mean()
 fig_avg_scores = px.line(
     avg_scores,
@@ -210,6 +213,7 @@ if reporting_option == "Cohort Overview":
         title="Attendance (FSG, SSG, SA) by Fellow (Grouped)",
         color_discrete_sequence=["#1f77b4", "#5dade2", "#85c1e9"]
     )
+    fig_grouped.update_yaxes(title_text="Attendance Percentage out of 100")
     st.plotly_chart(style_chart(fig_grouped), use_container_width=True)
     
     st.subheader("Attendance by Fellow (Stacked Bar Chart)")
@@ -222,6 +226,7 @@ if reporting_option == "Cohort Overview":
         title="Attendance (FSG, SSG, SA) by Fellow (Stacked)",
         color_discrete_sequence=["#1f77b4", "#5dade2", "#85c1e9"]
     )
+    fig_stacked.update_yaxes(title_text="Attendance Percentage out of 100")
     st.plotly_chart(style_chart(fig_stacked), use_container_width=True)
     
     st.subheader("LSAT Trajectories")
@@ -241,6 +246,8 @@ elif reporting_option == "Individual Fellow Reports":
     st.header("Individual Fellow Reports")
     fellows = sorted(df_scores[test_fellow_col].unique())
     selected_fellow = st.selectbox("Select Fellow", fellows)
+    
+    st.markdown("**Legend:** FSG = Fall Small Group, SSG = Spring Small Group, SA = Saturday Academy")
     
     st.subheader("Attendance Overview")
     fellow_attendance = attendance_chart_df[attendance_chart_df[attendance_fellow_col] == selected_fellow]
