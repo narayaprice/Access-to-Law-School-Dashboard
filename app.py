@@ -4,8 +4,10 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 # ==================== YALE STYLING ====================
-st.markdown("""
+st.markdown(
+    """
 <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+
 <style>
   :root{
     --yale-blue: #00356b;
@@ -13,13 +15,17 @@ st.markdown("""
     --bg: #ffffff;
   }
 
-  [data-testid="stSidebar"]{ background-color: var(--yale-blue); }
+  [data-testid="stSidebar"]{
+    background-color: var(--yale-blue);
+  }
   [data-testid="stSidebar"] *{
     color: #ffffff !important;
     font-family: "Source Sans 3", Arial, sans-serif !important;
   }
 
-  [data-testid="stAppViewContainer"]{ background: var(--bg); }
+  [data-testid="stAppViewContainer"]{
+    background: var(--bg);
+  }
 
   .stApp, .stApp *{
     color: var(--yale-blue) !important;
@@ -40,7 +46,9 @@ st.markdown("""
     font-family: "Source Sans 3", Arial, sans-serif !important;
   }
 </style>
-""", unsafe_allow_html=True)
+    """,
+    unsafe_allow_html=True
+)
 
 YALE_BLUES = ["#00356b", "#286dc0", "#4f83cc", "#7aa6de", "#a7c3ea"]
 
