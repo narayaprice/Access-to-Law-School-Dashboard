@@ -3,11 +3,14 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 
-# ==================== YALE STYLING ====================
+# ============================================================
+# YALE-STYLE THEME (fixes sidebar text invisibility + title)
+# ============================================================
+st.set_page_config(page_title="Access to Law School Dashboard", layout="wide")
+
 st.markdown(
     """
 <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
-
 <style>
   :root{
     --yale-blue: #00356b;
@@ -15,35 +18,51 @@ st.markdown(
     --bg: #ffffff;
   }
 
+  /* Sidebar */
   [data-testid="stSidebar"]{
-    background-color: var(--yale-blue);
+    background-color: var(--yale-blue) !important;
   }
   [data-testid="stSidebar"] *{
     color: #ffffff !important;
     font-family: "Source Sans 3", Arial, sans-serif !important;
   }
 
+  /* Sidebar title */
+  .sidebar-title{
+    color: #ffffff !important;
+    font-family: "Source Sans 3", Arial, sans-serif !important;
+    font-weight: 700;
+    font-size: 20px;
+    line-height: 1.2;
+    margin: 6px 0 12px 0;
+  }
+
+  /* Main page ONLY (do not target sidebar) */
   [data-testid="stAppViewContainer"]{
     background: var(--bg);
   }
-
-  .stApp, .stApp *{
+  [data-testid="stAppViewContainer"] .main,
+  [data-testid="stAppViewContainer"] .main *{
     color: var(--yale-blue) !important;
     font-family: "Libre Baskerville", Georgia, serif !important;
   }
 
-  .stButton>button, .stDownloadButton>button{
-    background: var(--yale-blue);
-    color: white !important;
-    border: 1px solid var(--yale-blue);
-  }
-  .stButton>button:hover, .stDownloadButton>button:hover{
-    background: var(--yale-blue-2);
-    border-color: var(--yale-blue-2);
+  /* Main labels / small UI text */
+  [data-testid="stAppViewContainer"] .main label,
+  [data-testid="stAppViewContainer"] .main .stMarkdown p,
+  [data-testid="stAppViewContainer"] .main .stMarkdown li{
+    font-family: "Source Sans 3", Arial, sans-serif !important;
   }
 
-  label, .stMarkdown p, .stMarkdown li{
-    font-family: "Source Sans 3", Arial, sans-serif !important;
+  /* Buttons */
+  .stButton>button, .stDownloadButton>button{
+    background: var(--yale-blue) !important;
+    color: #ffffff !important;
+    border: 1px solid var(--yale-blue) !important;
+  }
+  .stButton>button:hover, .stDownloadButton>button:hover{
+    background: var(--yale-blue-2) !important;
+    border-color: var(--yale-blue-2) !important;
   }
 </style>
     """,
@@ -74,10 +93,12 @@ def style_chart(fig):
 def convert_df(df: pd.DataFrame) -> bytes:
     return df.to_csv(index=False).encode("utf-8")
 
-# ==================== DATA LOADING (MULTI-COHORT) ====================
+# ============================================================
+# MULTI-COHORT FILES (renamed exactly as requested)
+# ============================================================
 COHORT_FILES = {
-    "Cohort 4 (2024 Fellows)": "YA2LS Cohort 4 Data (2024 Fellows).xlsx",
-    "Cohort 5 (Stats)": "Cohort 5 Stats-2.xlsx",
+    "Cohort 4 Fellows": "YA2LS Cohort 4 Data (2024 Fellows).xlsx",
+    "Cohort 5 Fellows": "Cohort 5 Stats-2.xlsx",
 }
 
 @st.cache_data
@@ -87,28 +108,18 @@ def load_workbook(path: str) -> dict:
         df.columns = df.columns.astype(str).str.strip()
     return sheets
 
-def safe_get_sheet(sheets: dict, name: str):
-    return sheets.get(name)
-
-def coerce_yes_no_to_binary(series: pd.Series) -> pd.Series:
-    # Handles Yes/No, Y/N, True/False, 1/0, NaN
-    s = series.astype(str).str.strip().str.lower()
-    return s.map({
-        "yes": 1, "y": 1, "true": 1, "1": 1,
-        "no": 0, "n": 0, "false": 0, "0": 0
-    })
-
-# ==================== SIDEBAR ====================
-st.sidebar.title("Access to Law School Data Dashboard")
+# ============================================================
+# SIDEBAR
+# ============================================================
+st.sidebar.markdown('<div class="sidebar-title">Access to Law School Cohort Data Dashboard</div>', unsafe_allow_html=True)
 st.sidebar.image(
     "https://law.yale.edu/sites/default/files/styles/content_full_width/public/images/news/accessday1-3381.jpg?itok=6vWWOiBv",
     use_container_width=True
 )
 
 selected_cohort = st.sidebar.selectbox("Select Cohort", list(COHORT_FILES.keys()), index=0)
-mode = st.sidebar.radio("View Mode", ["Cohort Overview", "Individual Fellow Report"])
+mode = st.sidebar.radio("Reporting Overview", ["Cohort Overview", "Individual Fellow Report"], index=0)
 
-# Load selected cohort workbook
 workbook_path = COHORT_FILES[selected_cohort]
 try:
     sheets = load_workbook(workbook_path)
@@ -121,27 +132,26 @@ except FileNotFoundError:
 
 st.title(f"{selected_cohort} Dashboard")
 
-# ==================== ROUTING: COHORT 4 vs COHORT 5 ====================
-# Cohort 4 expected sheets
+# ============================================================
+# SCHEMA DETECTION
+# ============================================================
 has_cohort4_schema = ("Attendance_New" in sheets and "Test Scores" in sheets and "Application Status" in sheets)
-
-# Cohort 5 expected schema (single sheet with demographics)
 has_cohort5_schema = ("Sheet1" in sheets and not has_cohort4_schema)
 
-# ==========================================================
-# ==================== COHORT 4 DASHBOARD ==================
-# ==========================================================
+# ============================================================
+# COHORT 4 DASHBOARD (Attendance + LSAT + Application Status)
+# ============================================================
 if has_cohort4_schema:
     df_attendance = sheets["Attendance_New"].copy()
     df_scores = sheets["Test Scores"].copy()
     df_app = sheets["Application Status"].copy()
 
-    # Names
+    # Build Full Name fields
     df_attendance["Full Name"] = df_attendance["First"].astype(str).str.strip() + " " + df_attendance["Last"].astype(str).str.strip()
     df_scores["Full Name"] = df_scores["Fellow First"].astype(str).str.strip() + " " + df_scores["Fellow Last"].astype(str).str.strip()
     df_app["Full Name"] = df_app["First"].astype(str).str.strip() + " " + df_app["Last"].astype(str).str.strip()
 
-    # LSAT
+    # -------------------- LSAT Scores --------------------
     lsat_cols = [
         "Diagnostic", "PT 73", "PT 136", "PT 137", "PT 138", "PT 139", "PT 140", "PT 141",
         "PT 144", "PT 145", "PT 146", "PT 147", "PT 148", "PT 149", "PT 150", "PT 151"
@@ -159,9 +169,11 @@ if has_cohort4_schema:
         var_name="Test",
         value_name="Score"
     ).dropna(subset=["Score"])
-    scores_long["Test"] = pd.Categorical(scores_long["Test"], categories=lsat_cols, ordered=True)
 
-    # Attendance (percent columns)
+    scores_long["Test"] = pd.Categorical(scores_long["Test"], categories=lsat_cols, ordered=True)
+    scores_long = scores_long.sort_values(by=["Full Name", "Test"])
+
+    # -------------------- Attendance --------------------
     fall_col = "Fall Small Group % Attendance"
     spring_col = "Spring Small Group % Attendance"
     sa_col = "Saturday Academy % Attendance"
@@ -169,7 +181,7 @@ if has_cohort4_schema:
 
     for c in [fall_col, spring_col, sa_col, total_col]:
         if c not in df_attendance.columns:
-            st.error(f"Missing required attendance column in Cohort 4 workbook: {c}")
+            st.error(f"Missing required attendance column in Cohort 4 workbook: '{c}'")
             st.stop()
 
     df_attendance[total_col] = pd.to_numeric(df_attendance[total_col], errors="coerce")
@@ -189,36 +201,36 @@ if has_cohort4_schema:
     attendance_order = ["FSG = Fall Small Group", "SSG = Spring Small Group", "SA = Saturday Academy"]
     attendance_chart_df["Attendance Type"] = pd.Categorical(attendance_chart_df["Attendance Type"], categories=attendance_order, ordered=True)
 
-    def render_application_status_charts(fellow_name: str):
+    # Application Status charted (no table)
+    def render_application_status_chart(fellow_name: str):
+        st.subheader("Application Status Overview")
         row = df_app[df_app["Full Name"] == fellow_name]
         if row.empty:
             st.info("No application status data available for this fellow.")
             return
-        # Convert yes/no fields into a simple bar (no table)
+
         data = row.drop(columns=["First", "Last"], errors="ignore").iloc[0].to_dict()
-        fields = []
-        values = []
+        fields, values = [], []
         for k, v in data.items():
             if k == "Full Name":
                 continue
             fields.append(k)
-            # Try to map statuses to a numeric “filled” indicator just for visualization
-            if pd.isna(v) or str(v).strip() == "":
-                values.append(0)
-            else:
-                values.append(1)
+            values.append(0 if pd.isna(v) or str(v).strip() == "" else 1)
 
         app_df = pd.DataFrame({"Field": fields, "Has Data": values})
-        fig = px.bar(app_df, x="Field", y="Has Data", title="Application Status Fields Present (1=present, 0=missing)",
+        fig = px.bar(app_df, x="Field", y="Has Data",
+                     title="Application Fields Present (1=present, 0=missing)",
                      color_discrete_sequence=["#286dc0"])
         fig.update_yaxes(title_text="Indicator")
         st.plotly_chart(style_chart(fig), use_container_width=True)
 
-    # -------- Cohort 4 views --------
+    # -------------------- Cohort Overview --------------------
     if mode == "Cohort Overview":
         st.header("Cohort Overview")
 
-        # LSAT trajectories (all fellows + cohort avg)
+        # LSAT trajectories: all fellows + cohort average (hover shows names)
+        st.subheader("LSAT Trajectories (Hover for Fellow Name)")
+
         fellow_options = sorted(scores_long["Full Name"].dropna().unique())
         fellow_filter = st.multiselect("Filter by Fellow(s)", options=fellow_options, default=fellow_options)
 
@@ -230,7 +242,8 @@ if has_cohort4_schema:
         ]
         avg_df = filtered.groupby("Test", as_index=False)["Score"].mean()
 
-        fig = px.line(filtered, x="Test", y="Score", color="Full Name", title="LSAT Trajectories (Hover for Fellow)", markers=True)
+        fig = px.line(filtered, x="Test", y="Score", color="Full Name",
+                      title="LSAT Trajectories", markers=True)
         fig.add_trace(go.Scatter(
             x=avg_df["Test"],
             y=avg_df["Score"],
@@ -240,8 +253,8 @@ if has_cohort4_schema:
         ))
         st.plotly_chart(style_chart(fig), use_container_width=True)
 
-        # Improvement >75% attendance
-        st.subheader("Score Improvement for Fellows with >75% Total Attendance")
+        # Score improvement for high attendance
+        st.subheader("LSAT Growth for Fellows with >75% Total Attendance")
         high_attendance = df_attendance[df_attendance[total_col] > 75]
         joined_scores = pd.merge(
             high_attendance[["Full Name", total_col]],
@@ -288,16 +301,26 @@ if has_cohort4_schema:
         fig_stacked.update_yaxes(title_text="Attendance Percent out of 100%")
         st.plotly_chart(style_chart(fig_stacked), use_container_width=True)
 
+        # Downloads
         st.download_button("Download Attendance (CSV)", convert_df(df_attendance), "attendance.csv", "text/csv")
         st.download_button("Download LSAT Scores (CSV)", convert_df(df_scores), "lsat_scores.csv", "text/csv")
+        st.download_button("Download Application Status (CSV)", convert_df(df_app), "application_status.csv", "text/csv")
 
+    # -------------------- Individual Fellow Report --------------------
     else:
         st.header("Individual Fellow Report")
+
         fellows = sorted(df_scores["Full Name"].dropna().unique())
         selected = st.selectbox("Select Fellow", fellows)
 
+        st.markdown("**Legend:** FSG = Fall Small Group, SSG = Spring Small Group, SA = Saturday Academy")
+
         st.subheader("LSAT Score Trend")
         indiv_scores = scores_long[scores_long["Full Name"] == selected]
+        completed_tests = [t for t in indiv_scores["Test"].astype(str).tolist() if t and t != "nan"]
+        if completed_tests:
+            st.markdown(f"**Tests Completed:** {' → '.join(completed_tests)}")
+
         fig_indiv = px.line(indiv_scores, x="Test", y="Score", markers=True,
                             title=f"LSAT Scores for {selected}", color_discrete_sequence=["#00356b"])
         st.plotly_chart(style_chart(fig_indiv), use_container_width=True)
@@ -317,24 +340,34 @@ if has_cohort4_schema:
         fig_att.update_yaxes(title_text="Attendance Percent out of 100%")
         st.plotly_chart(style_chart(fig_att), use_container_width=True)
 
-        st.subheader("Application Status Overview (Charted)")
-        render_application_status_charts(selected)
+        render_application_status_chart(selected)
 
-        st.download_button("Download Fellow Attendance (CSV)",
-                           convert_df(df_attendance[df_attendance["Full Name"] == selected]),
-                           f"{selected}_attendance.csv", "text/csv")
-        st.download_button("Download Fellow Scores (CSV)",
-                           convert_df(df_scores[df_scores["Full Name"] == selected]),
-                           f"{selected}_scores.csv", "text/csv")
+        st.download_button(
+            "Download Fellow Attendance (CSV)",
+            convert_df(df_attendance[df_attendance["Full Name"] == selected]),
+            f"{selected}_attendance.csv",
+            "text/csv"
+        )
+        st.download_button(
+            "Download Fellow Scores (CSV)",
+            convert_df(df_scores[df_scores["Full Name"] == selected]),
+            f"{selected}_scores.csv",
+            "text/csv"
+        )
+        st.download_button(
+            "Download Fellow Application Status (CSV)",
+            convert_df(df_app[df_app["Full Name"] == selected]),
+            f"{selected}_application_status.csv",
+            "text/csv"
+        )
 
-# ==========================================================
-# ==================== COHORT 5 DASHBOARD ==================
-# ==========================================================
+# ============================================================
+# COHORT 5 DASHBOARD (Demographics / Background)
+# ============================================================
 elif has_cohort5_schema:
     df = sheets["Sheet1"].copy()
 
-    # Normalize column names & set Full Name
-    # In your file, the fellow name is in "Unnamed: 0"
+    # Cohort 5 name column
     name_col = "Unnamed: 0"
     if name_col not in df.columns:
         st.error("Cohort 5 file: expected fellow name column 'Unnamed: 0' not found.")
@@ -342,40 +375,40 @@ elif has_cohort5_schema:
 
     df["Full Name"] = df[name_col].astype(str).str.strip()
 
-    # Clean numeric columns
+    # Clean numeric
     for c in ["Age", "GPA"]:
         if c in df.columns:
             df[c] = pd.to_numeric(df[c], errors="coerce")
 
-    # Clean Yes/No columns into consistent categories for charting
+    # Yes/No columns used for charts
     yn_cols = [c for c in ["First-Gen", "Syst Impacted", "Strong Ties", "LGBTQIA+"] if c in df.columns]
     for c in yn_cols:
         df[c] = df[c].astype(str).str.strip().replace({"nan": pd.NA, "": pd.NA})
 
-    # -------- Cohort 5 views --------
     if mode == "Cohort Overview":
-        st.header("Cohort Overview (Demographics & Background)")
+        st.header("Cohort Overview")
 
-        # Yes/No breakdowns
+        # Binary distributions
         for c in yn_cols:
             counts = df[c].fillna("Missing").value_counts().reset_index()
             counts.columns = [c, "Count"]
-            fig = px.bar(counts, x=c, y="Count", title=f"{c} Distribution", color_discrete_sequence=["#286dc0"])
+            fig = px.bar(counts, x=c, y="Count", title=f"{c} Distribution",
+                         color_discrete_sequence=["#286dc0"])
             st.plotly_chart(style_chart(fig), use_container_width=True)
 
-        # GPA distribution
+        # GPA
         if "GPA" in df.columns:
             fig_gpa = px.histogram(df.dropna(subset=["GPA"]), x="GPA", nbins=10, title="GPA Distribution",
                                    color_discrete_sequence=["#00356b"])
             st.plotly_chart(style_chart(fig_gpa), use_container_width=True)
 
-        # Age distribution
+        # Age
         if "Age" in df.columns:
             fig_age = px.histogram(df.dropna(subset=["Age"]), x="Age", nbins=10, title="Age Distribution",
                                    color_discrete_sequence=["#7aa6de"])
             st.plotly_chart(style_chart(fig_age), use_container_width=True)
 
-        # Gender identity distribution
+        # Gender Identity
         if "Gender Identity" in df.columns:
             g = df["Gender Identity"].fillna("Missing").value_counts().reset_index()
             g.columns = ["Gender Identity", "Count"]
@@ -386,38 +419,50 @@ elif has_cohort5_schema:
         st.download_button("Download Cohort 5 Data (CSV)", convert_df(df), "cohort5.csv", "text/csv")
 
     else:
-        st.header("Individual Fellow Report (Cohort 5)")
+        st.header("Individual Fellow Report")
         fellows = sorted(df["Full Name"].dropna().unique())
         selected = st.selectbox("Select Fellow", fellows)
 
         row = df[df["Full Name"] == selected].iloc[0]
 
-        # Profile chart: encode key binary attributes as 0/1 and show as bar
-        profile_fields = []
-        profile_vals = []
+        # Profile chart (yes/no fields)
+        profile_fields, profile_vals = [], []
         for c in yn_cols:
-            profile_fields.append(c)
             v = str(row.get(c, "")).strip().lower()
-            profile_vals.append(1 if v == "yes" else 0 if v == "no" else None)
+            if v in ("yes", "y", "true", "1"):
+                profile_fields.append(c)
+                profile_vals.append(1)
+            elif v in ("no", "n", "false", "0"):
+                profile_fields.append(c)
+                profile_vals.append(0)
 
-        prof = pd.DataFrame({"Field": profile_fields, "Value": profile_vals}).dropna()
+        prof = pd.DataFrame({"Field": profile_fields, "Value": profile_vals})
         if not prof.empty:
-            fig_prof = px.bar(prof, x="Field", y="Value", title=f"Profile Indicators for {selected} (1=Yes, 0=No)",
-                              color_discrete_sequence=["#00356b"])
+            fig_prof = px.bar(
+                prof,
+                x="Field",
+                y="Value",
+                title=f"Profile Indicators for {selected} (1=Yes, 0=No)",
+                color_discrete_sequence=["#00356b"]
+            )
             fig_prof.update_yaxes(title_text="Indicator", range=[0, 1])
             st.plotly_chart(style_chart(fig_prof), use_container_width=True)
 
-        # GPA / Age as metrics (not tables)
+        # GPA / Age as metrics
         cols = st.columns(2)
         if "GPA" in df.columns and pd.notnull(row.get("GPA")):
             cols[0].metric("GPA", f"{row.get('GPA'):.2f}")
         if "Age" in df.columns and pd.notnull(row.get("Age")):
             cols[1].metric("Age", f"{int(row.get('Age'))}")
 
-        # Hometown / Strong ties as simple text
+        # Hometown, etc. (minimal text; no tables)
         if "Hometown" in df.columns:
             st.subheader("Hometown")
             st.write(str(row.get("Hometown", "")))
+
+        if "Strong Ties" in df.columns:
+            st.subheader("Strong Ties")
+            st.write(str(row.get("Strong Ties", "")))
 
         if "Graduated from Bachelors Program" in df.columns:
             st.subheader("Graduated from Bachelors Program")
@@ -427,10 +472,13 @@ elif has_cohort5_schema:
                            convert_df(df[df["Full Name"] == selected]),
                            f"{selected}_cohort5.csv", "text/csv")
 
+# ============================================================
+# UNKNOWN SCHEMA
+# ============================================================
 else:
     st.error(
         "This workbook doesn’t match Cohort 4 (Attendance/Test Scores/Application Status) "
         "or Cohort 5 (Sheet1 demographics) schemas. "
-        "If you want, paste the sheet names + column headers and I’ll add a third parser."
+        "If you paste the sheet names + column headers, I’ll add another parser."
     )
     st.stop()
