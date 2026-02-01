@@ -159,6 +159,7 @@ if is_cohort4:
     selected = st.sidebar.selectbox("Select Fellow", fellows)
 
     st.header("Individual Fellow Report")
+    st.subheader(selected)  # <-- Fellow name at top
 
     # -------------------- LSAT Scores --------------------
     lsat_cols = [
@@ -304,6 +305,7 @@ elif is_cohort5:
     selected = st.sidebar.selectbox("Select Fellow", fellows)
 
     st.header("Individual Fellow Report")
+    st.subheader(selected)
 
     row_df = df[df["Fellow Name"] == selected].copy()
     if row_df.empty:
