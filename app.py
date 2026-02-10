@@ -115,10 +115,13 @@ st.sidebar.markdown(
     '<div class="sidebar-title">Access to Law School Cohort Data Dashboard</div>',
     unsafe_allow_html=True
 )
-st.sidebar.image("sidebar_photo.jpg", use_container_width=True)
+st.sidebar.markdown(
+    '<div class="sidebar-title">Access to Law School Cohort Data Dashboard</div>',
+    unsafe_allow_html=True
 )
+st.sidebar.image("sidebar_photo.jpg", use_container_width=True)
 
-selected_cohort = st.sidebar.selectbox("Select Cohort", list(COHORT_FILES.keys()), index=0)
+selected_cohort = st.sidebar.selectbox("Select Cohort", list(COHORT_FILES.keys()), index=0))
 
 workbook_path = COHORT_FILES[selected_cohort]
 try:
