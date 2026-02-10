@@ -8,7 +8,63 @@ import streamlit.components.v1 as components
 # PAGE CONFIG
 # ============================================================
 st.set_page_config(page_title="Access to Law School Dashboard", layout="wide")
+NAVY = "#00356b"
+WHITE = "#ffffff"
+GRID = "rgba(255,255,255,0.18)"
 
+st.markdown(f"""
+<style>
+/* --- App background --- */
+html, body, [data-testid="stApp"], [data-testid="stAppViewContainer"] {{
+  background: {NAVY} !important;
+}}
+
+/* --- Sidebar background (Streamlit wraps this a few times) --- */
+section[data-testid="stSidebar"] {{
+  background: {NAVY} !important;
+}}
+section[data-testid="stSidebar"] > div {{
+  background: {NAVY} !important;
+}}
+
+/* --- Make ALL sidebar text white --- */
+section[data-testid="stSidebar"] * {{
+  color: {WHITE} !important;
+}}
+
+/* --- Main area text white --- */
+[data-testid="stAppViewContainer"] .main * {{
+  color: {WHITE} !important;
+}}
+
+/* --- Fix black text inside inputs/selects (BaseWeb) --- */
+section[data-testid="stSidebar"] [data-baseweb="select"] * {{
+  color: {WHITE} !important;
+}}
+section[data-testid="stSidebar"] input,
+section[data-testid="stSidebar"] textarea {{
+  color: {WHITE} !important;
+  -webkit-text-fill-color: {WHITE} !important;
+}}
+
+/* selectbox + multiselect background */
+section[data-testid="stSidebar"] [data-baseweb="select"] > div {{
+  background: rgba(255,255,255,0.10) !important;
+  border: 1px solid {GRID} !important;
+}}
+
+/* labels */
+section[data-testid="stSidebar"] label {{
+  color: {WHITE} !important;
+}}
+
+/* Optional: main area widgets too */
+[data-baseweb="select"] > div {{
+  background: rgba(255,255,255,0.06) !important;
+  border: 1px solid {GRID} !important;
+}}
+</style>
+""", unsafe_allow_html=True)
 # ============================================================
 # NAVY + WHITE THEME (force entire app background)
 # ============================================================
@@ -104,8 +160,6 @@ CSS = """
   hr { border-top: 1px solid var(--grid) !important; }
 </style>
 """
-components.html(CSS, height=0, scrolling=False)
-
 # ============================================================
 # FILES
 # ============================================================
