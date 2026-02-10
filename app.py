@@ -2,7 +2,6 @@ import re
 import pandas as pd
 import streamlit as st
 import plotly.express as px
-import streamlit.components.v1 as components
 
 # ============================================================
 # PAGE CONFIG
@@ -13,18 +12,16 @@ st.set_page_config(page_title="Access to Law School Dashboard", layout="wide")
 # COLORS
 # ============================================================
 NAVY = "#00356b"     # Yale navy
-NAVY_2 = "#286dc0"
 WHITE = "#ffffff"
 
 # ============================================================
 # NAVY + WHITE THEME (MAIN + SIDEBAR)
+# IMPORTANT: Use st.markdown, NOT components.html, or the CSS won't hit sidebar.
 # ============================================================
 CSS = f"""
-<link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
 <style>
   :root {{
     --navy: {NAVY};
-    --navy2: {NAVY_2};
     --white: {WHITE};
   }}
 
@@ -33,11 +30,9 @@ CSS = f"""
     background: var(--navy) !important;
   }}
 
-  /* Main content text */
-  [data-testid="stAppViewContainer"] .main,
-  [data-testid="stAppViewContainer"] .main * {{
-    color: var(--white) !important;
-    font-family: "Libre Baskerville", Georgia, serif !important;
+  /* Main content area background */
+  [data-testid="stMain"] {{
+    background: var(--navy) !important;
   }}
 
   /* Sidebar background */
@@ -45,20 +40,24 @@ CSS = f"""
     background: var(--navy) !important;
   }}
 
-  /* Sidebar text + widget labels */
-  section[data-testid="stSidebar"] * {{
-    color: var(--white) !important;
-    font-family: "Source Sans 3", Arial, sans-serif !important;
+  /* Default text */
+  * {{
+    color: var(--white);
   }}
 
-  /* Sidebar title */
-  .sidebar-title {{
+  /* Streamlit often sets text color on specific elements; force white */
+  [data-testid="stSidebar"] *,
+  [data-testid="stAppViewContainer"] * {{
     color: var(--white) !important;
-    font-family: "Source Sans 3", Arial, sans-serif !important;
-    font-weight: 700;
-    font-size: 20px;
-    line-height: 1.2;
-    margin: 10px 0 12px 0;
+  }}
+
+  /* Inputs: select boxes, etc. */
+  div[data-baseweb="select"] > div {{
+    background: rgba(255,255,255,0.08) !important;
+    border: 1px solid rgba(255,255,255,0.25) !important;
+  }}
+  div[data-baseweb="select"] * {{
+    color: var(--white) !important;
   }}
 
   /* Buttons */
@@ -68,18 +67,14 @@ CSS = f"""
     border: 1px solid var(--white) !important;
     font-weight: 700 !important;
   }}
-  .stButton > button:hover, .stDownloadButton > button:hover {{
-    background: rgba(255,255,255,0.9) !important;
-    border-color: rgba(255,255,255,0.9) !important;
-  }}
 
-  /* Selectbox + other BaseWeb inputs */
-  div[data-baseweb="select"] > div {{
-    background: rgba(255,255,255,0.08) !important;
-    border: 1px solid rgba(255,255,255,0.25) !important;
-  }}
-  div[data-baseweb="select"] * {{
+  /* Sidebar title */
+  .sidebar-title {{
     color: var(--white) !important;
+    font-weight: 800;
+    font-size: 20px;
+    line-height: 1.2;
+    margin: 10px 0 12px 0;
   }}
 
   /* Remove header bar */
@@ -88,7 +83,7 @@ CSS = f"""
   }}
 </style>
 """
-components.html(CSS, height=0, scrolling=False)
+st.markdown(CSS, unsafe_allow_html=True)
 
 # ============================================================
 # HELPERS
@@ -99,12 +94,11 @@ def convert_df(df: pd.DataFrame) -> bytes:
 @st.cache_data
 def load_workbook(path: str) -> dict:
     sheets = pd.read_excel(path, sheet_name=None)
-    for df in sheets.values():
-        df.columns = df.columns.astype(str).str.strip()
+    for d in sheets.values():
+        d.columns = d.columns.astype(str).str.strip()
     return sheets
 
 def normalize_value(v):
-    """Cohort 5 bio: N/A -> Not Applicable; blanks -> (missing)."""
     if pd.isna(v):
         return "(missing)"
     s = str(v).strip()
@@ -120,7 +114,6 @@ def normalize_colname(c: str) -> str:
     return c
 
 def normalize_yes_no(x):
-    """Map common values to Yes/No; otherwise None."""
     if pd.isna(x):
         return None
     s = str(x).strip().lower()
@@ -137,23 +130,19 @@ def load_weekly_updates(path: str) -> pd.DataFrame:
     return df
 
 def style_plotly(fig):
-    """
-    Make Plotly readable on navy background, with visible axes.
-    NOTE: Plotly >= 6 removed xaxis.titlefont/yaxis.titlefont; use title=dict(font=...)
-    """
+    """Plotly styling for navy background + visible axes (NO titlefont usage)."""
     grid = "rgba(255,255,255,0.18)"
     axis = "rgba(255,255,255,0.75)"
 
     fig.update_layout(
         paper_bgcolor=NAVY,
         plot_bgcolor=NAVY,
-        font=dict(color=WHITE, family="Libre Baskerville, Georgia, serif"),
+        font=dict(color=WHITE),
         title=dict(font=dict(color=WHITE)),
         legend=dict(font=dict(color=WHITE), title_font=dict(color=WHITE)),
         margin=dict(l=70, r=30, t=80, b=70),
     )
 
-    # X axis
     fig.update_xaxes(
         showline=True,
         linecolor=axis,
@@ -168,7 +157,6 @@ def style_plotly(fig):
         showticklabels=True,
     )
 
-    # Y axis
     fig.update_yaxes(
         showline=True,
         linecolor=axis,
@@ -188,7 +176,6 @@ def style_plotly(fig):
 def attendance_bar_charts(df_long: pd.DataFrame, title_prefix: str):
     """
     df_long columns: Program, Response(Yes/No), Count
-    Creates two bar charts: Yes (attended) and No (missed)
     """
     yes_df = df_long[df_long["Response"] == "Yes"].copy()
     no_df = df_long[df_long["Response"] == "No"].copy()
@@ -198,13 +185,11 @@ def attendance_bar_charts(df_long: pd.DataFrame, title_prefix: str):
         st.info("No Yes/attended responses found yet.")
     else:
         fig_yes = px.bar(
-            yes_df,
-            x="Program",
-            y="Count",
+            yes_df, x="Program", y="Count",
             title=f"{title_prefix} — Attended",
             labels={"Program": "Program Attended", "Count": "Count"},
-            color_discrete_sequence=[NAVY],  # force navy bars
         )
+        fig_yes.update_traces(marker_color=NAVY)  # force navy bars
         fig_yes.update_xaxes(title_text="Program Attended", tickangle=-25)
         fig_yes.update_yaxes(title_text="Count")
         st.plotly_chart(style_plotly(fig_yes), use_container_width=True)
@@ -214,13 +199,11 @@ def attendance_bar_charts(df_long: pd.DataFrame, title_prefix: str):
         st.info("No No/missed responses found yet.")
     else:
         fig_no = px.bar(
-            no_df,
-            x="Program",
-            y="Count",
+            no_df, x="Program", y="Count",
             title=f"{title_prefix} — Missed",
             labels={"Program": "Program Missed", "Count": "Count"},
-            color_discrete_sequence=[NAVY],  # force navy bars
         )
+        fig_no.update_traces(marker_color=NAVY)  # force navy bars
         fig_no.update_xaxes(title_text="Program Missed", tickangle=-25)
         fig_no.update_yaxes(title_text="Count")
         st.plotly_chart(style_plotly(fig_no), use_container_width=True)
@@ -295,7 +278,6 @@ if is_cohort4:
     st.header("Individual Fellow Report")
     st.subheader(selected)
 
-    # ---------- LSAT Scores ----------
     lsat_cols = [
         "Diagnostic", "PT 73", "PT 136", "PT 137", "PT 138", "PT 139", "PT 140", "PT 141",
         "PT 144", "PT 145", "PT 146", "PT 147", "PT 148", "PT 149", "PT 150", "PT 151"
@@ -321,18 +303,15 @@ if is_cohort4:
         st.info("No LSAT score data available for this fellow.")
     else:
         fig_lsat = px.line(
-            scores_long,
-            x="Test",
-            y="Score",
+            scores_long, x="Test", y="Score",
             title=f"LSAT Scores for {selected}",
             markers=True,
-            color_discrete_sequence=[NAVY],
         )
+        fig_lsat.update_traces(line_color=NAVY)
         fig_lsat.update_xaxes(title_text="Test")
         fig_lsat.update_yaxes(title_text="Score")
         st.plotly_chart(style_plotly(fig_lsat), use_container_width=True)
 
-    # ---------- Attendance ----------
     fall_col = "Fall Small Group % Attendance"
     spring_col = "Spring Small Group % Attendance"
     sa_col = "Saturday Academy % Attendance"
@@ -362,18 +341,15 @@ if is_cohort4:
         )
 
         fig_att = px.bar(
-            att_long,
-            x="Attendance Type",
-            y="Attendance",
+            att_long, x="Attendance Type", y="Attendance",
             title=f"Attendance for {selected}",
             labels={"Attendance Type": "Program", "Attendance": "Attendance %"},
-            color_discrete_sequence=[NAVY],
         )
+        fig_att.update_traces(marker_color=NAVY)
         fig_att.update_xaxes(title_text="Program")
         fig_att.update_yaxes(title_text="Attendance %")
         st.plotly_chart(style_plotly(fig_att), use_container_width=True)
 
-    # ---------- Application Status ----------
     st.subheader("Application Status Overview")
     app_row = df_app[df_app["Full Name"] == selected].copy()
     if app_row.empty:
@@ -386,7 +362,6 @@ if is_cohort4:
             val = "(missing)" if pd.isna(v) or str(v).strip() == "" else str(v).strip()
             st.write(f"**{k}:** {val}")
 
-    # Downloads
     st.download_button(
         "Download Fellow Attendance (CSV)",
         convert_df(df_attendance[df_attendance["Full Name"] == selected]),
@@ -429,7 +404,6 @@ elif is_cohort5:
     st.header("Individual Fellow Report")
     st.subheader(selected)
 
-    # ---------- Bio Snapshot ----------
     row_df = df[df["Fellow Name"] == selected].copy()
     if row_df.empty:
         st.error("Selected fellow not found in Cohort 5 bio data.")
@@ -437,7 +411,6 @@ elif is_cohort5:
     row = row_df.iloc[0].to_dict()
 
     st.subheader("Biographical Snapshot")
-
     field_map = [
         ("First-Gen", "First-Gen"),
         ("Age", "Age"),
@@ -462,7 +435,6 @@ elif is_cohort5:
         for c in extras:
             st.write(f"**{c}:** {normalize_value(row.get(c))}")
 
-    # ---------- Weekly Coach Updates ----------
     st.markdown("---")
     st.header("Weekly Coach Updates (Cohort 5)")
 
@@ -487,7 +459,6 @@ elif is_cohort5:
 
     weekly_fellow = weekly[weekly["Fellow"] == selected].copy()
 
-    # --- Attendance: Saturday Academy ---
     sa_cols = [c for c in weekly.columns if "Saturday Academy" in c]
     if sa_cols:
         sa_long = weekly[["Fellow"] + sa_cols].copy()
@@ -507,7 +478,6 @@ elif is_cohort5:
     else:
         st.info("No 'Saturday Academy' columns found yet in the weekly updates file.")
 
-    # --- Attendance: 1-on-1 with Ryan ---
     ryan_cols = [c for c in weekly.columns if "1-on-1 with Ryan" in c]
     ryan_cols = [c for c in ryan_cols if c != "1-on-1 with Ryan"]
     if ryan_cols:
@@ -528,7 +498,6 @@ elif is_cohort5:
     else:
         st.info("No weekly '1-on-1 with Ryan' columns found yet in the weekly updates file.")
 
-    # --- Coach Engagement: counts per week + show comments ---
     engagement_cols = [c for c in weekly.columns if "Coach Engagement" in c]
     if engagement_cols:
         eng_melt = weekly[["Fellow", "Week"] + engagement_cols].copy()
@@ -552,8 +521,8 @@ elif is_cohort5:
                 y="Count",
                 title="Coach Engagement — Responses per Week",
                 labels={"Week": "Week", "Count": "Count of Engagement Entries"},
-                color_discrete_sequence=[NAVY],
             )
+            fig_week.update_traces(marker_color=NAVY)
             fig_week.update_xaxes(title_text="Week", tickangle=-25)
             fig_week.update_yaxes(title_text="Count of Engagement Entries")
             st.plotly_chart(style_plotly(fig_week), use_container_width=True)
@@ -581,7 +550,6 @@ elif is_cohort5:
     else:
         st.info("No 'Coach Engagement' columns found yet in the weekly updates file.")
 
-    # Downloads
     st.markdown("---")
     st.download_button(
         "Download Selected Fellow Bio Row (CSV)",
