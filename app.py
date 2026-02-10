@@ -128,10 +128,7 @@ def normalize_yes_no(x):
     return None
 
 def style_plotly(fig):
-    """
-    Plotly styling for navy background + visible axes (Plotly 6 compatible).
-    NO titlefont usage anywhere.
-    """
+    """Make Plotly readable on navy background, with visible axes (Plotly 6 compatible)."""
     grid = "rgba(255,255,255,0.18)"
     axis = "rgba(255,255,255,0.75)"
 
@@ -144,34 +141,37 @@ def style_plotly(fig):
         margin=dict(l=70, r=30, t=80, b=70),
     )
 
+    # Make bars navy (and keep other traces readable)
+    fig.update_traces(marker=dict(color=NAVY))
+
     fig.update_xaxes(
         showline=True,
         linecolor=axis,
         linewidth=1,
-        showgrid=True,
-        gridcolor=grid,
-        zeroline=True,
-        zerolinecolor=grid,
         ticks="outside",
         tickcolor=axis,
         tickfont=dict(color=WHITE),
         showticklabels=True,
-        title=dict(text=fig.layout.xaxis.title.text if fig.layout.xaxis.title else "", font=dict(color=WHITE)),
+        showgrid=True,
+        gridcolor=grid,
+        zeroline=True,
+        zerolinecolor=grid,
+        title=dict(font=dict(color=WHITE)),  # <-- Plotly 6: NO titlefont
     )
 
     fig.update_yaxes(
         showline=True,
         linecolor=axis,
         linewidth=1,
-        showgrid=True,
-        gridcolor=grid,
-        zeroline=True,
-        zerolinecolor=grid,
         ticks="outside",
         tickcolor=axis,
         tickfont=dict(color=WHITE),
         showticklabels=True,
-        title=dict(text=fig.layout.yaxis.title.text if fig.layout.yaxis.title else "", font=dict(color=WHITE)),
+        showgrid=True,
+        gridcolor=grid,
+        zeroline=True,
+        zerolinecolor=grid,
+        title=dict(font=dict(color=WHITE)),  # <-- Plotly 6: NO titlefont
     )
 
     return fig
