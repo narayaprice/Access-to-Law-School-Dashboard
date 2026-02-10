@@ -7,8 +7,12 @@ import plotly.express as px
 # PAGE CONFIG
 # ============================================================
 st.set_page_config(page_title="Access to Law School Dashboard", layout="wide")
-st.warning("DEPLOY MARKER: app.py updated 2026-02-10  (commit will confirm)")
-st.sidebar.caption("BUILD: 2026-02-10_15:12")  # change this string every push
+
+# A simple fingerprint so you can confirm the deployed file is the one you expect.
+# You can remove this once everything is stable.
+DEPLOY_FINGERPRINT = "2026-02-10_plotly6_axis_title_fix"
+st.caption(f"deploy: {DEPLOY_FINGERPRINT}")
+
 # ============================================================
 # NAVY + WHITE THEME (MAIN + SIDEBAR)
 # ============================================================
@@ -25,30 +29,25 @@ CSS = f"""
     --white: {WHITE};
   }}
 
-  /* Whole app background */
   html, body, [data-testid="stAppViewContainer"] {{
     background: var(--navy) !important;
   }}
 
-  /* Main content text */
   [data-testid="stAppViewContainer"] .main,
   [data-testid="stAppViewContainer"] .main * {{
     color: var(--white) !important;
     font-family: "Libre Baskerville", Georgia, serif !important;
   }}
 
-  /* Sidebar background */
   section[data-testid="stSidebar"] {{
     background: var(--navy) !important;
   }}
 
-  /* Sidebar text + widget labels */
   section[data-testid="stSidebar"] * {{
     color: var(--white) !important;
     font-family: "Source Sans 3", Arial, sans-serif !important;
   }}
 
-  /* Sidebar title */
   .sidebar-title {{
     color: var(--white) !important;
     font-family: "Source Sans 3", Arial, sans-serif !important;
@@ -58,7 +57,6 @@ CSS = f"""
     margin: 10px 0 12px 0;
   }}
 
-  /* Buttons */
   .stButton > button, .stDownloadButton > button {{
     background: var(--white) !important;
     color: var(--navy) !important;
@@ -70,7 +68,6 @@ CSS = f"""
     border-color: rgba(255,255,255,0.9) !important;
   }}
 
-  /* Inputs (selectboxes etc.) */
   div[data-baseweb="select"] > div {{
     background: rgba(255,255,255,0.08) !important;
     border: 1px solid rgba(255,255,255,0.25) !important;
@@ -79,13 +76,11 @@ CSS = f"""
     color: var(--white) !important;
   }}
 
-  /* Remove header bar */
   [data-testid="stHeader"] {{
     background: transparent !important;
   }}
 </style>
 """
-# IMPORTANT: use st.markdown so CSS applies to the main Streamlit DOM (not an iframe)
 st.markdown(CSS, unsafe_allow_html=True)
 
 # ============================================================
@@ -94,12 +89,14 @@ st.markdown(CSS, unsafe_allow_html=True)
 def convert_df(df: pd.DataFrame) -> bytes:
     return df.to_csv(index=False).encode("utf-8")
 
+
 @st.cache_data
 def load_workbook(path: str) -> dict:
     sheets = pd.read_excel(path, sheet_name=None)
     for df in sheets.values():
         df.columns = df.columns.astype(str).str.strip()
     return sheets
+
 
 def normalize_value(v):
     """Cohort 5 bio: N/A -> Not Applicable; blanks -> (missing)."""
@@ -112,10 +109,12 @@ def normalize_value(v):
         return "Not Applicable"
     return s
 
+
 def normalize_colname(c: str) -> str:
     c = str(c).strip()
     c = re.sub(r"\s+", " ", c)
     return c
+
 
 def normalize_yes_no(x):
     """Map common values to Yes/No; otherwise None."""
@@ -128,8 +127,15 @@ def normalize_yes_no(x):
         return "No"
     return None
 
+
 def style_plotly(fig):
-    """Make Plotly readable on navy background, with visible axes (Plotly 6 compatible)."""
+    """
+    Plotly 6-safe styling:
+    - No 'titlefont' anywhere (deprecated/removed)
+    - Axis titles styled via title=dict(font=...)
+    - Only set marker color for traces that actually have markers
+      (avoid breaking line/scatter in unexpected ways)
+    """
     grid = "rgba(255,255,255,0.18)"
     axis = "rgba(255,255,255,0.75)"
 
@@ -142,8 +148,15 @@ def style_plotly(fig):
         margin=dict(l=70, r=30, t=80, b=70),
     )
 
-    # Make bars navy (safe: only affects traces with markers)
-    fig.update_traces(marker=dict(color=NAVY))
+    # Safely color bar-like traces without clobbering everything
+    # (Only applies where marker exists.)
+    for tr in getattr(fig, "data", []):
+        try:
+            # Many traces have marker; lines also can have marker, but this won't break them.
+            if hasattr(tr, "marker") and tr.marker is not None:
+                tr.marker.color = NAVY
+        except Exception:
+            pass
 
     fig.update_xaxes(
         showline=True,
@@ -157,7 +170,7 @@ def style_plotly(fig):
         gridcolor=grid,
         zeroline=True,
         zerolinecolor=grid,
-        title=dict(font=dict(color=WHITE)),  # Plotly 6 replacement
+        title=dict(font=dict(color=WHITE)),
     )
 
     fig.update_yaxes(
@@ -172,16 +185,18 @@ def style_plotly(fig):
         gridcolor=grid,
         zeroline=True,
         zerolinecolor=grid,
-        title=dict(font=dict(color=WHITE)),  # Plotly 6 replacement
+        title=dict(font=dict(color=WHITE)),
     )
 
     return fig
+
 
 @st.cache_data
 def load_weekly_updates(path: str) -> pd.DataFrame:
     df = pd.read_excel(path)
     df.columns = [normalize_colname(c) for c in df.columns]
     return df
+
 
 def attendance_bar_charts(df_long: pd.DataFrame, title_prefix: str):
     """
@@ -202,7 +217,7 @@ def attendance_bar_charts(df_long: pd.DataFrame, title_prefix: str):
             title=f"{title_prefix} — Attended",
             labels={"Program": "Program Attended", "Count": "Count"},
         )
-        # Force bar color to NAVY (Plotly otherwise picks a default palette)
+        # Explicit color for bars
         fig_yes.update_traces(marker_color=NAVY)
         fig_yes.update_xaxes(title_text="Program Attended", tickangle=-25)
         fig_yes.update_yaxes(title_text="Count")
@@ -223,6 +238,7 @@ def attendance_bar_charts(df_long: pd.DataFrame, title_prefix: str):
         fig_no.update_xaxes(title_text="Program Missed", tickangle=-25)
         fig_no.update_yaxes(title_text="Count")
         st.plotly_chart(style_plotly(fig_no), use_container_width=True)
+
 
 # ============================================================
 # FILES
