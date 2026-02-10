@@ -148,12 +148,31 @@ except FileNotFoundError:
 
 # Main page title
 st.title(selected_cohort)
-
 # ============================================================
-# SCHEMA DETECTION
+# SCHEMA DETECTION (robust)
 # ============================================================
 is_cohort4 = ("Attendance_New" in sheets and "Test Scores" in sheets and "Application Status" in sheets)
-is_cohort5 = ("Sheet1" in sheets and not is_cohort4)
+
+# Find a Cohort 5-like sheet by expected columns (works even if sheet isn't named Sheet1)
+COHORT5_EXPECTED = {
+    "Name", "Full Name", "Unnamed: 0",
+    "First-Gen", "Age",
+    "Undergraduate GPA",
+    "Undergraduate Instituion",  # typo variant
+    "Undergraduate Institution",
+    "Graduate GPA", "Graduate Institution",
+    "Previous Official LSAT", "Diagnostic LSAT"
+}
+
+cohort5_sheet_name = None
+if not is_cohort4:
+    for sheet_name, df in sheets.items():
+        cols = set(df.columns.astype(str).str.strip())
+        if len(cols.intersection(COHORT5_EXPECTED)) >= 6:  # threshold: "looks like" Cohort 5
+            cohort5_sheet_name = sheet_name
+            break
+
+is_cohort5 = (cohort5_sheet_name is not None)
 
 # ============================================================
 # COHORT 4 — INDIVIDUAL ONLY (charts OK)
@@ -294,26 +313,22 @@ if is_cohort4:
         f"{selected}_application_status.csv",
         "text/csv"
     )
-
 # ============================================================
 # COHORT 5 — INDIVIDUAL ONLY (NO CHARTS / NO TABLES)
-# Uses columns: Name, First-Gen, Age, UG GPA, UG Institution, Grad GPA, Grad Institution,
-# Previous Official LSAT, Diagnostic LSAT
 # N/A -> Not Applicable
 # ============================================================
 elif is_cohort5:
-    df = sheets["Sheet1"].copy()
+    df = sheets[cohort5_sheet_name].copy()
     df.columns = df.columns.astype(str).str.strip()
 
-    # Name column in your file appears as "Unnamed: 0" (per your upload),
-    # but support "Name" too in case you renamed it.
+    # Name column
     name_col = None
     for c in ["Name", "Full Name", "Unnamed: 0"]:
         if c in df.columns:
             name_col = c
             break
     if name_col is None:
-        st.error("Cohort 5 file: could not find a name column (expected 'Name' or 'Unnamed: 0').")
+        st.error("Cohort 5 file: could not find a name column (expected 'Name', 'Full Name', or 'Unnamed: 0').")
         st.stop()
 
     df["Fellow Name"] = df[name_col].astype(str).str.strip()
@@ -330,8 +345,8 @@ elif is_cohort5:
         st.stop()
     row = row_df.iloc[0].to_dict()
 
-    # Preferred ordering / labels (matches what you described)
-    # NOTE: Your sheet uses "Undergraduate Instituion" (typo) — keep both possibilities.
+    # Preferred ordering / labels
+    # NOTE: Support both Institution spellings.
     field_map = [
         ("First-Gen", "First-Gen"),
         ("Age", "Age"),
@@ -346,20 +361,24 @@ elif is_cohort5:
 
     st.subheader("Biographical Snapshot")
 
-    shown = set()
+    # Track which RAW columns we displayed (not labels)
+    displayed_raw_cols = set()
     for raw_col, label in field_map:
-        if raw_col in row and raw_col not in shown:
+        if raw_col in df.columns and raw_col in row and raw_col not in displayed_raw_cols:
             st.write(f"**{label}:** {normalize_value(row.get(raw_col))}")
-            shown.add(raw_col)
+            displayed_raw_cols.add(raw_col)
 
-    # If there are extra columns beyond the expected ones, show them too (still no tables).
-    extras = [c for c in df.columns if c not in {name_col, "Fellow Name"} and c not in shown]
+    # Show any additional columns not in the expected list (still no tables)
+    expected_raw_cols = {raw for raw, _ in field_map}
+    extras = [
+        c for c in df.columns
+        if c not in {name_col, "Fellow Name"} and c not in expected_raw_cols
+    ]
     if extras:
         st.subheader("Additional Fields")
         for c in extras:
             st.write(f"**{c}:** {normalize_value(row.get(c))}")
 
-    # Downloads
     st.download_button(
         "Download Fellow Row (CSV)",
         convert_df(df[df["Fellow Name"] == selected]),
@@ -372,10 +391,3 @@ elif is_cohort5:
         "cohort5_full.csv",
         "text/csv"
     )
-
-else:
-    st.error(
-        "This workbook doesn’t match Cohort 4 (Attendance_New/Test Scores/Application Status) "
-        "or Cohort 5 (Sheet1) schemas."
-    )
-    st.stop()
