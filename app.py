@@ -1,3 +1,6 @@
+import os
+st.sidebar.caption(f"RUNNING FILE: {os.path.abspath(__file__)}")
+st.sidebar.caption(f"CWD: {os.getcwd()}")
 import re
 import pandas as pd
 import streamlit as st
