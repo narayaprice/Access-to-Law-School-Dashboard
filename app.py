@@ -125,14 +125,17 @@ st.sidebar.markdown(
     unsafe_allow_html=True
 )
 
-# local file in repo
+# Sidebar image (local file in repo)
 st.sidebar.image("sidebar_photo.jpg", use_container_width=True)
+
+# Cohort selector (defined ONCE)
 selected_cohort = st.sidebar.selectbox(
     "Select Cohort",
     list(COHORT_FILES.keys()),
     index=0
 )
 
+# Load selected cohort workbook
 workbook_path = COHORT_FILES[selected_cohort]
 try:
     sheets = load_workbook(workbook_path)
@@ -143,7 +146,7 @@ except FileNotFoundError:
     )
     st.stop()
 
-# Main title
+# Main page title
 st.title(selected_cohort)
 
 # ============================================================
