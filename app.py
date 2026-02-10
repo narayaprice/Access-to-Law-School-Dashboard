@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import streamlit.components.v1 as components
 
 # ============================================================
 # PAGE CONFIG
@@ -8,7 +9,7 @@ import plotly.express as px
 st.set_page_config(page_title="Access to Law School Dashboard", layout="wide")
 
 # ============================================================
-# YALE-STYLE THEME (use st.html so CSS never prints as text)
+# YALE-STYLE THEME (components.html prevents CSS from printing as text)
 # ============================================================
 CSS = """
 <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
@@ -34,7 +35,7 @@ CSS = """
     font-weight: 700;
     font-size: 20px;
     line-height: 1.2;
-    margin: 6px 0 12px 0;
+    margin: 8px 0 12px 0;
   }
 
   /* Main page ONLY */
@@ -66,10 +67,7 @@ CSS = """
   }
 </style>
 """
-if hasattr(st, "html"):
-    st.html(CSS)
-else:
-    st.markdown(CSS, unsafe_allow_html=True)
+components.html(CSS, height=0, scrolling=False)
 
 YALE_BLUES = ["#00356b", "#286dc0", "#7aa6de"]
 
@@ -100,6 +98,17 @@ def load_workbook(path: str) -> dict:
         df.columns = df.columns.astype(str).str.strip()
     return sheets
 
+def normalize_value(v):
+    """Normalize display values for Cohort 5: N/A -> Not Applicable; blanks -> (missing)."""
+    if pd.isna(v):
+        return "(missing)"
+    s = str(v).strip()
+    if s == "":
+        return "(missing)"
+    if s.upper() in {"N/A", "NA", "N.A.", "NOT APPLICABLE"}:
+        return "Not Applicable"
+    return s
+
 # ============================================================
 # COHORT FILES
 # ============================================================
@@ -109,18 +118,14 @@ COHORT_FILES = {
 }
 
 # ============================================================
-# SIDEBAR (NO REPORTING OVERVIEW RADIO ANYMORE)
-# ============================================================
-st.sidebar.markdown(
-    '<div class="sidebar-title">Access to Law School Cohort Data Dashboard</div>',
-    unsafe_allow_html=True
-# ============================================================
-# SIDEBAR (NO REPORTING OVERVIEW RADIO ANYMORE)
+# SIDEBAR
 # ============================================================
 st.sidebar.markdown(
     '<div class="sidebar-title">Access to Law School Cohort Data Dashboard</div>',
     unsafe_allow_html=True
 )
+
+# local file in repo
 st.sidebar.image("sidebar_photo.jpg", use_container_width=True)
 
 selected_cohort = st.sidebar.selectbox(
@@ -134,12 +139,13 @@ try:
     sheets = load_workbook(workbook_path)
 except FileNotFoundError:
     st.error(
-        f"Could not find '{workbook_path}' in the repo. "
-        "Add it next to app.py (or update COHORT_FILES) and redeploy."
+        f"Could not find '{workbook_path}' next to app.py. "
+        "Add it to the repo folder (same level as app.py) and redeploy."
     )
     st.stop()
 
-st.title(f"{selected_cohort}")
+# Main title
+st.title(selected_cohort)
 
 # ============================================================
 # SCHEMA DETECTION
@@ -156,16 +162,21 @@ if is_cohort4:
     df_app = sheets["Application Status"].copy()
 
     # Full names
-    df_attendance["Full Name"] = df_attendance["First"].astype(str).str.strip() + " " + df_attendance["Last"].astype(str).str.strip()
-    df_scores["Full Name"] = df_scores["Fellow First"].astype(str).str.strip() + " " + df_scores["Fellow Last"].astype(str).str.strip()
-    df_app["Full Name"] = df_app["First"].astype(str).str.strip() + " " + df_app["Last"].astype(str).str.strip()
+    df_attendance["Full Name"] = (
+        df_attendance["First"].astype(str).str.strip() + " " + df_attendance["Last"].astype(str).str.strip()
+    )
+    df_scores["Full Name"] = (
+        df_scores["Fellow First"].astype(str).str.strip() + " " + df_scores["Fellow Last"].astype(str).str.strip()
+    )
+    df_app["Full Name"] = (
+        df_app["First"].astype(str).str.strip() + " " + df_app["Last"].astype(str).str.strip()
+    )
 
-    # Sidebar fellow selector (THIS is the only “view selector” now)
     fellows = sorted(df_scores["Full Name"].dropna().unique())
     selected = st.sidebar.selectbox("Select Fellow", fellows)
 
     st.header("Individual Fellow Report")
-    st.subheader(selected)  # <-- Fellow name at top
+    st.subheader(selected)
 
     # -------------------- LSAT Scores --------------------
     lsat_cols = [
@@ -183,6 +194,7 @@ if is_cohort4:
         var_name="Test",
         value_name="Score"
     ).dropna(subset=["Score"])
+
     scores_long = scores_long[scores_long["Full Name"] == selected].copy()
     scores_long["Test"] = pd.Categorical(scores_long["Test"], categories=lsat_cols, ordered=True)
     scores_long = scores_long.sort_values("Test")
@@ -192,7 +204,9 @@ if is_cohort4:
         st.info("No LSAT score data available for this fellow.")
     else:
         fig_lsat = px.line(
-            scores_long, x="Test", y="Score",
+            scores_long,
+            x="Test",
+            y="Score",
             title=f"LSAT Scores for {selected}",
             markers=True,
             color_discrete_sequence=["#00356b"]
@@ -213,8 +227,8 @@ if is_cohort4:
     attendance_order = ["FSG = Fall Small Group", "SSG = Spring Small Group", "SA = Saturday Academy"]
 
     att_row = df_attendance[df_attendance["Full Name"] == selected].copy()
+    st.subheader("Attendance Overview")
     if att_row.empty:
-        st.subheader("Attendance Overview")
         st.info("No attendance data available for this fellow.")
     else:
         att_long = pd.melt(
@@ -232,7 +246,6 @@ if is_cohort4:
         })
         att_long["Attendance Type"] = pd.Categorical(att_long["Attendance Type"], categories=attendance_order, ordered=True)
 
-        st.subheader("Attendance Overview")
         fig_att = px.bar(
             att_long,
             x="Attendance Type",
@@ -246,30 +259,19 @@ if is_cohort4:
         fig_att.update_yaxes(title_text="Attendance Percent out of 100%")
         st.plotly_chart(style_chart(fig_att), use_container_width=True)
 
-    # -------------------- Application Status (chart is okay) --------------------
+    # -------------------- Application Status (kept as-is) --------------------
     st.subheader("Application Status Overview")
     app_row = df_app[df_app["Full Name"] == selected].copy()
     if app_row.empty:
         st.info("No application status data available for this fellow.")
     else:
+        # Straightforward display (no table): field-by-field
         data = app_row.drop(columns=["First", "Last"], errors="ignore").iloc[0].to_dict()
-        fields, values = [], []
         for k, v in data.items():
             if k == "Full Name":
                 continue
-            fields.append(k)
-            values.append(0 if pd.isna(v) or str(v).strip() == "" else 1)
-
-        app_df = pd.DataFrame({"Field": fields, "Has Data": values})
-        fig_app = px.bar(
-            app_df,
-            x="Field",
-            y="Has Data",
-            title="Application Fields Present (1=present, 0=missing)",
-            color_discrete_sequence=["#286dc0"]
-        )
-        fig_app.update_yaxes(title_text="Indicator")
-        st.plotly_chart(style_chart(fig_app), use_container_width=True)
+            val = "(missing)" if pd.isna(v) or str(v).strip() == "" else str(v).strip()
+            st.write(f"**{k}:** {val}")
 
     # Downloads
     st.download_button(
@@ -292,21 +294,28 @@ if is_cohort4:
     )
 
 # ============================================================
-# COHORT 5 — INDIVIDUAL ONLY (NO CHARTS / NO BAR GRAPHS)
+# COHORT 5 — INDIVIDUAL ONLY (NO CHARTS / NO TABLES)
+# Uses columns: Name, First-Gen, Age, UG GPA, UG Institution, Grad GPA, Grad Institution,
+# Previous Official LSAT, Diagnostic LSAT
+# N/A -> Not Applicable
 # ============================================================
 elif is_cohort5:
     df = sheets["Sheet1"].copy()
+    df.columns = df.columns.astype(str).str.strip()
 
-    # Find the fellow name column robustly
-    # Prefer "Full Name" if it exists, else fall back to "Unnamed: 0"
-    name_col = "Full Name" if "Full Name" in df.columns else ("Unnamed: 0" if "Unnamed: 0" in df.columns else None)
+    # Name column in your file appears as "Unnamed: 0" (per your upload),
+    # but support "Name" too in case you renamed it.
+    name_col = None
+    for c in ["Name", "Full Name", "Unnamed: 0"]:
+        if c in df.columns:
+            name_col = c
+            break
     if name_col is None:
-        st.error("Cohort 5 file: could not find a name column (expected 'Full Name' or 'Unnamed: 0').")
+        st.error("Cohort 5 file: could not find a name column (expected 'Name' or 'Unnamed: 0').")
         st.stop()
 
     df["Fellow Name"] = df[name_col].astype(str).str.strip()
 
-    # Sidebar fellow selector
     fellows = sorted(df["Fellow Name"].dropna().unique())
     selected = st.sidebar.selectbox("Select Fellow", fellows)
 
@@ -319,60 +328,34 @@ elif is_cohort5:
         st.stop()
     row = row_df.iloc[0].to_dict()
 
-    # Helpful numeric parsing (quietly; if column missing, ignore)
-    def to_num(x):
-        try:
-            return float(x)
-        except Exception:
-            return None
-
-    # ---- Top “at-a-glance” metrics (only show if present) ----
-    st.subheader("At-a-Glance")
-
-    # Candidate numeric columns (based on your last file + future-proofing)
-    metric_candidates = [
-        "Age",
-        "Undergraduate GPA", "UG GPA",
-        "Graduate GPA",
-        "Previous Official LSAT", "Official LSAT",
-        "Diagnostic LSAT", "Diagnostic",
+    # Preferred ordering / labels (matches what you described)
+    # NOTE: Your sheet uses "Undergraduate Instituion" (typo) — keep both possibilities.
+    field_map = [
+        ("First-Gen", "First-Gen"),
+        ("Age", "Age"),
+        ("Undergraduate GPA", "Undergraduate GPA"),
+        ("Undergraduate Instituion", "Undergraduate Institution"),
+        ("Undergraduate Institution", "Undergraduate Institution"),
+        ("Graduate GPA", "Graduate GPA"),
+        ("Graduate Institution", "Graduate Institution"),
+        ("Previous Official LSAT", "Previous Official LSAT"),
+        ("Diagnostic LSAT", "Diagnostic LSAT"),
     ]
 
-    # Build a list of metrics that actually exist
-    present_metrics = []
-    for c in metric_candidates:
-        if c in row and pd.notna(row.get(c)) and str(row.get(c)).strip() != "":
-            present_metrics.append(c)
+    st.subheader("Biographical Snapshot")
 
-    if present_metrics:
-        cols = st.columns(min(5, len(present_metrics)))
-        for i, c in enumerate(present_metrics[:5]):
-            val = row.get(c)
-            num = to_num(val)
-            if num is not None and c.lower().endswith("gpa"):
-                cols[i].metric(c, f"{num:.2f}")
-            elif num is not None and ("lsat" in c.lower() or c.lower() == "age"):
-                cols[i].metric(c, f"{int(num)}")
-            else:
-                cols[i].metric(c, str(val))
-    else:
-        st.write("No numeric snapshot fields found in this Cohort 5 workbook.")
+    shown = set()
+    for raw_col, label in field_map:
+        if raw_col in row and raw_col not in shown:
+            st.write(f"**{label}:** {normalize_value(row.get(raw_col))}")
+            shown.add(raw_col)
 
-    # ---- Full profile: show ALL columns (no charts, no tables) ----
-    st.subheader("Profile (All Fields)")
-
-    # Exclude internal name columns from repeated display
-    exclude = {name_col, "Fellow Name"}
-    fields = [c for c in df.columns if c not in exclude]
-
-    # Print as clean labeled lines (straightforward, not a dataframe/table)
-    for c in fields:
-        v = row.get(c)
-        if pd.isna(v) or str(v).strip() == "":
-            display_val = "(missing)"
-        else:
-            display_val = str(v).strip()
-        st.write(f"**{c}:** {display_val}")
+    # If there are extra columns beyond the expected ones, show them too (still no tables).
+    extras = [c for c in df.columns if c not in {name_col, "Fellow Name"} and c not in shown]
+    if extras:
+        st.subheader("Additional Fields")
+        for c in extras:
+            st.write(f"**{c}:** {normalize_value(row.get(c))}")
 
     # Downloads
     st.download_button(
@@ -390,7 +373,7 @@ elif is_cohort5:
 
 else:
     st.error(
-        "This workbook doesn’t match Cohort 4 (Attendance/Test Scores/Application Status) "
+        "This workbook doesn’t match Cohort 4 (Attendance_New/Test Scores/Application Status) "
         "or Cohort 5 (Sheet1) schemas."
     )
     st.stop()
