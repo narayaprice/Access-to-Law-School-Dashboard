@@ -10,12 +10,15 @@ import streamlit.components.v1 as components
 st.set_page_config(page_title="Access to Law School Dashboard", layout="wide")
 
 # ============================================================
-# NAVY + WHITE THEME (MAIN + SIDEBAR)
+# COLORS
 # ============================================================
-NAVY = "#00356b"
+NAVY = "#00356b"     # Yale navy
 NAVY_2 = "#286dc0"
 WHITE = "#ffffff"
 
+# ============================================================
+# NAVY + WHITE THEME (MAIN + SIDEBAR)
+# ============================================================
 CSS = f"""
 <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
 <style>
@@ -70,7 +73,7 @@ CSS = f"""
     border-color: rgba(255,255,255,0.9) !important;
   }}
 
-  /* Inputs (selectboxes etc.) */
+  /* Selectbox + other BaseWeb inputs */
   div[data-baseweb="select"] > div {{
     background: rgba(255,255,255,0.08) !important;
     border: 1px solid rgba(255,255,255,0.25) !important;
@@ -79,7 +82,7 @@ CSS = f"""
     color: var(--white) !important;
   }}
 
-  /* Remove the default top padding gap look */
+  /* Remove header bar */
   [data-testid="stHeader"] {{
     background: transparent !important;
   }}
@@ -112,7 +115,6 @@ def normalize_value(v):
     return s
 
 def normalize_colname(c: str) -> str:
-    # collapse whitespace + trim
     c = str(c).strip()
     c = re.sub(r"\s+", " ", c)
     return c
@@ -128,8 +130,17 @@ def normalize_yes_no(x):
         return "No"
     return None
 
+@st.cache_data
+def load_weekly_updates(path: str) -> pd.DataFrame:
+    df = pd.read_excel(path)
+    df.columns = [normalize_colname(c) for c in df.columns]
+    return df
+
 def style_plotly(fig):
-    """Make Plotly readable on navy background, with visible axes."""
+    """
+    Make Plotly readable on navy background, with visible axes.
+    NOTE: Plotly >= 6 removed xaxis.titlefont/yaxis.titlefont; use title=dict(font=...)
+    """
     grid = "rgba(255,255,255,0.18)"
     axis = "rgba(255,255,255,0.75)"
 
@@ -139,36 +150,40 @@ def style_plotly(fig):
         font=dict(color=WHITE, family="Libre Baskerville, Georgia, serif"),
         title=dict(font=dict(color=WHITE)),
         legend=dict(font=dict(color=WHITE), title_font=dict(color=WHITE)),
-        margin=dict(l=60, r=25, t=70, b=60),
+        margin=dict(l=70, r=30, t=80, b=70),
     )
 
+    # X axis
     fig.update_xaxes(
         showline=True,
         linecolor=axis,
         tickfont=dict(color=WHITE),
-        titlefont=dict(color=WHITE),
+        title=dict(font=dict(color=WHITE)),
+        showgrid=True,
         gridcolor=grid,
+        zeroline=True,
         zerolinecolor=grid,
         ticks="outside",
         tickcolor=axis,
+        showticklabels=True,
     )
+
+    # Y axis
     fig.update_yaxes(
         showline=True,
         linecolor=axis,
         tickfont=dict(color=WHITE),
-        titlefont=dict(color=WHITE),
+        title=dict(font=dict(color=WHITE)),
+        showgrid=True,
         gridcolor=grid,
+        zeroline=True,
         zerolinecolor=grid,
         ticks="outside",
         tickcolor=axis,
+        showticklabels=True,
     )
-    return fig
 
-@st.cache_data
-def load_weekly_updates(path: str) -> pd.DataFrame:
-    df = pd.read_excel(path)
-    df.columns = [normalize_colname(c) for c in df.columns]
-    return df
+    return fig
 
 def attendance_bar_charts(df_long: pd.DataFrame, title_prefix: str):
     """
@@ -188,7 +203,7 @@ def attendance_bar_charts(df_long: pd.DataFrame, title_prefix: str):
             y="Count",
             title=f"{title_prefix} — Attended",
             labels={"Program": "Program Attended", "Count": "Count"},
-            color_discrete_sequence=[NAVY],
+            color_discrete_sequence=[NAVY],  # force navy bars
         )
         fig_yes.update_xaxes(title_text="Program Attended", tickangle=-25)
         fig_yes.update_yaxes(title_text="Count")
@@ -204,7 +219,7 @@ def attendance_bar_charts(df_long: pd.DataFrame, title_prefix: str):
             y="Count",
             title=f"{title_prefix} — Missed",
             labels={"Program": "Program Missed", "Count": "Count"},
-            color_discrete_sequence=[NAVY],
+            color_discrete_sequence=[NAVY],  # force navy bars
         )
         fig_no.update_xaxes(title_text="Program Missed", tickangle=-25)
         fig_no.update_yaxes(title_text="Count")
@@ -217,7 +232,6 @@ COHORT_FILES = {
     "Cohort 4 Fellows": "YA2LS Cohort 4 Data (2024 Fellows).xlsx",
     "Cohort 5 Fellows": "Cohort 5 Stats - Updated for Dashboard.xlsx",
 }
-
 WEEKLY_UPDATES_FILE = "Cohort 5 - Weekly Fellow Updates - SP26 (Responses).xlsx"
 SIDEBAR_PHOTO = "sidebar_photo.jpg"
 
@@ -229,16 +243,16 @@ st.sidebar.markdown(
     unsafe_allow_html=True,
 )
 
-# Sidebar image
 try:
     st.sidebar.image(SIDEBAR_PHOTO, use_container_width=True)
 except Exception:
     st.sidebar.caption("(Sidebar photo not found — add sidebar_photo.jpg next to app.py)")
 
-# Cohort selector (defined ONCE)
 selected_cohort = st.sidebar.selectbox("Select Cohort", list(COHORT_FILES.keys()), index=0)
 
-# Load selected cohort workbook
+# ============================================================
+# LOAD COHORT WORKBOOK
+# ============================================================
 workbook_path = COHORT_FILES[selected_cohort]
 try:
     sheets = load_workbook(workbook_path)
@@ -258,7 +272,7 @@ is_cohort4 = ("Attendance_New" in sheets and "Test Scores" in sheets and "Applic
 is_cohort5 = ("Sheet1" in sheets and not is_cohort4)
 
 # ============================================================
-# COHORT 4 — INDIVIDUAL ONLY (charts OK)
+# COHORT 4 — INDIVIDUAL ONLY
 # ============================================================
 if is_cohort4:
     df_attendance = sheets["Attendance_New"].copy()
@@ -297,6 +311,7 @@ if is_cohort4:
         var_name="Test",
         value_name="Score",
     ).dropna(subset=["Score"])
+
     scores_long = scores_long[scores_long["Full Name"] == selected].copy()
     scores_long["Test"] = pd.Categorical(scores_long["Test"], categories=lsat_cols, ordered=True)
     scores_long = scores_long.sort_values("Test")
@@ -343,11 +358,7 @@ if is_cohort4:
         )
         att_long["Attendance"] = pd.to_numeric(att_long["Attendance"], errors="coerce")
         att_long["Attendance Type"] = att_long["Attendance Type"].map(
-            {
-                fall_col: "FSG",
-                spring_col: "SSG",
-                sa_col: "SA",
-            }
+            {fall_col: "FSG", spring_col: "SSG", sa_col: "SA"}
         )
 
         fig_att = px.bar(
@@ -396,13 +407,12 @@ if is_cohort4:
     )
 
 # ============================================================
-# COHORT 5 — BIO + WEEKLY COACH UPDATES (CHARTS OK)
+# COHORT 5 — BIO + WEEKLY UPDATES
 # ============================================================
 elif is_cohort5:
     df = sheets["Sheet1"].copy()
     df.columns = df.columns.astype(str).str.strip()
 
-    # Identify name column robustly
     name_col = None
     for c in ["Name", "Full Name", "Unnamed: 0"]:
         if c in df.columns:
@@ -465,7 +475,6 @@ elif is_cohort5:
         )
         st.stop()
 
-    # Standardize key cols
     if "Fellow" not in weekly.columns:
         st.error("Weekly updates file is missing a 'Fellow' column.")
         st.stop()
@@ -476,7 +485,6 @@ elif is_cohort5:
     weekly["Fellow"] = weekly["Fellow"].astype(str).str.strip()
     weekly["Week"] = weekly["Week"].astype(str).str.strip()
 
-    # Filter to this fellow for text display (and optional per-fellow charts if desired)
     weekly_fellow = weekly[weekly["Fellow"] == selected].copy()
 
     # --- Attendance: Saturday Academy ---
@@ -501,9 +509,7 @@ elif is_cohort5:
 
     # --- Attendance: 1-on-1 with Ryan ---
     ryan_cols = [c for c in weekly.columns if "1-on-1 with Ryan" in c]
-    # Remove the generic '1-on-1 with Ryan' column if it exists (it’s ambiguous vs. weekly-specific)
     ryan_cols = [c for c in ryan_cols if c != "1-on-1 with Ryan"]
-
     if ryan_cols:
         ryan_long = weekly[["Fellow"] + ryan_cols].copy()
         ryan_long = ryan_long.melt(id_vars=["Fellow"], var_name="Program", value_name="Raw")
@@ -525,11 +531,14 @@ elif is_cohort5:
     # --- Coach Engagement: counts per week + show comments ---
     engagement_cols = [c for c in weekly.columns if "Coach Engagement" in c]
     if engagement_cols:
-        # Count responses per Week (a response = non-empty engagement text in any engagement column)
         eng_melt = weekly[["Fellow", "Week"] + engagement_cols].copy()
         eng_melt = eng_melt.melt(id_vars=["Fellow", "Week"], var_name="Field", value_name="Text")
         eng_melt["Text"] = eng_melt["Text"].astype(str).str.strip()
-        eng_melt = eng_melt[eng_melt["Text"].notna() & (eng_melt["Text"] != "") & (eng_melt["Text"].str.lower() != "nan")]
+        eng_melt = eng_melt[
+            eng_melt["Text"].notna()
+            & (eng_melt["Text"] != "")
+            & (eng_melt["Text"].str.lower() != "nan")
+        ]
 
         week_counts = eng_melt.groupby("Week").size().reset_index(name="Count")
 
@@ -553,16 +562,14 @@ elif is_cohort5:
         if weekly_fellow.empty:
             st.info("No weekly rows found yet for this fellow.")
         else:
-            # Build per-week expanders, showing all Coach Engagement fields that week
             wf = weekly_fellow[["Week"] + engagement_cols].copy()
             wf["Week"] = wf["Week"].astype(str).str.strip()
 
             for wk in sorted(wf["Week"].dropna().unique()):
                 wk_rows = wf[wf["Week"] == wk].copy()
-                # There could be >1 row/week if multiple coaches submit; show all
                 with st.expander(f"Week: {wk}", expanded=False):
                     any_text = False
-                    for idx, r in wk_rows.iterrows():
+                    for _, r in wk_rows.iterrows():
                         for c in engagement_cols:
                             txt = r.get(c)
                             txt_norm = "" if pd.isna(txt) else str(txt).strip()
