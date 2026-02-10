@@ -115,9 +115,7 @@ st.sidebar.markdown(
     '<div class="sidebar-title">Access to Law School Cohort Data Dashboard</div>',
     unsafe_allow_html=True
 )
-st.sidebar.image(
-    "https://law.yale.edu/sites/default/files/styles/content_full_width/public/images/news/accessday1-3381.jpg?itok=6vWWOiBv",
-    use_container_width=True
+st.sidebar.image("sidebar_photo.jpg", use_container_width=True)
 )
 
 selected_cohort = st.sidebar.selectbox("Select Cohort", list(COHORT_FILES.keys()), index=0)
