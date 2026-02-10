@@ -141,7 +141,7 @@ def style_plotly(fig):
         margin=dict(l=70, r=30, t=80, b=70),
     )
 
-    # Make bars navy (and keep other traces readable)
+    # Make bars navy (safe: only affects traces with markers)
     fig.update_traces(marker=dict(color=NAVY))
 
     fig.update_xaxes(
@@ -156,7 +156,7 @@ def style_plotly(fig):
         gridcolor=grid,
         zeroline=True,
         zerolinecolor=grid,
-        title=dict(font=dict(color=WHITE)),  # <-- Plotly 6: NO titlefont
+        title=dict(font=dict(color=WHITE)),  # Plotly 6 replacement
     )
 
     fig.update_yaxes(
@@ -171,7 +171,7 @@ def style_plotly(fig):
         gridcolor=grid,
         zeroline=True,
         zerolinecolor=grid,
-        title=dict(font=dict(color=WHITE)),  # <-- Plotly 6: NO titlefont
+        title=dict(font=dict(color=WHITE)),  # Plotly 6 replacement
     )
 
     return fig
