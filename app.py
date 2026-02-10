@@ -127,7 +127,6 @@ st.sidebar.markdown(
 
 # local file in repo
 st.sidebar.image("sidebar_photo.jpg", use_container_width=True)
-
 selected_cohort = st.sidebar.selectbox(
     "Select Cohort",
     list(COHORT_FILES.keys()),
