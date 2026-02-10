@@ -7,6 +7,7 @@ import plotly.express as px
 # PAGE CONFIG
 # ============================================================
 st.set_page_config(page_title="Access to Law School Dashboard", layout="wide")
+st.warning("DEPLOY MARKER: app.py updated 2026-02-10  (commit will confirm)")
 st.sidebar.caption("BUILD: 2026-02-10_15:12")  # change this string every push
 # ============================================================
 # NAVY + WHITE THEME (MAIN + SIDEBAR)
