@@ -1,5 +1,6 @@
-import streamlit as st
+import re
 import pandas as pd
+import streamlit as st
 import plotly.express as px
 import streamlit.components.v1 as components
 
@@ -9,40 +10,27 @@ import streamlit.components.v1 as components
 st.set_page_config(page_title="Access to Law School Dashboard", layout="wide")
 
 # ============================================================
-# NAVY + WHITE THEME (components.html prevents CSS from printing as text)
+# NAVY + WHITE THEME (force entire app background)
 # ============================================================
 CSS = """
-<link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
 <style>
   :root{
-    --navy: #00356b;        /* Yale blue */
-    --navy-2: #00264d;      /* deeper */
-    --accent: #286dc0;      /* lighter Yale blue */
+    --navy: #00356b;
+    --navy2: #286dc0;
     --white: #ffffff;
+    --muted: rgba(255,255,255,0.75);
+    --grid: rgba(255,255,255,0.12);
   }
 
-  /* Entire app background */
-  [data-testid="stAppViewContainer"]{
+  html, body, [data-testid="stApp"]{
     background: var(--navy) !important;
   }
 
-  /* Main area text defaults */
-  [data-testid="stAppViewContainer"] .main,
-  [data-testid="stAppViewContainer"] .main *{
-    color: var(--white) !important;
-    font-family: "Libre Baskerville", Georgia, serif !important;
-  }
-
-  /* Make smaller UI text Source Sans */
-  [data-testid="stAppViewContainer"] .main label,
-  [data-testid="stAppViewContainer"] .main .stMarkdown p,
-  [data-testid="stAppViewContainer"] .main .stMarkdown li{
-    font-family: "Source Sans 3", Arial, sans-serif !important;
-  }
-
-  /* Sidebar background */
+  /* Sidebar */
   [data-testid="stSidebar"]{
-    background-color: var(--navy-2) !important;
+    background-color: var(--navy) !important;
+    border-right: 1px solid var(--grid) !important;
   }
   [data-testid="stSidebar"] *{
     color: var(--white) !important;
@@ -58,38 +46,98 @@ CSS = """
     margin: 8px 0 12px 0;
   }
 
+  /* Main container */
+  [data-testid="stAppViewContainer"]{
+    background: var(--navy) !important;
+  }
+  [data-testid="stAppViewContainer"] .main{
+    background: var(--navy) !important;
+  }
+  [data-testid="stAppViewContainer"] .main,
+  [data-testid="stAppViewContainer"] .main *{
+    color: var(--white) !important;
+    font-family: "Libre Baskerville", Georgia, serif !important;
+  }
+
+  /* Body text / labels use sans */
+  [data-testid="stAppViewContainer"] .main label,
+  [data-testid="stAppViewContainer"] .main .stMarkdown p,
+  [data-testid="stAppViewContainer"] .main .stMarkdown li,
+  [data-testid="stAppViewContainer"] .main .stCaption,
+  [data-testid="stAppViewContainer"] .main .stText,
+  [data-testid="stAppViewContainer"] .main .stAlert{
+    font-family: "Source Sans 3", Arial, sans-serif !important;
+    color: var(--white) !important;
+  }
+
+  /* Metric styling */
+  [data-testid="stMetricValue"], [data-testid="stMetricLabel"]{
+    color: var(--white) !important;
+  }
+
+  /* Expanders */
+  [data-testid="stExpander"]{
+    background: rgba(255,255,255,0.06) !important;
+    border: 1px solid var(--grid) !important;
+    border-radius: 10px !important;
+  }
+
+  /* Inputs */
+  .stSelectbox, .stTextInput, .stMultiSelect{
+    color: var(--white) !important;
+  }
+
   /* Buttons */
   .stButton>button, .stDownloadButton>button{
-    background: var(--accent) !important;
-    color: var(--white) !important;
-    border: 1px solid var(--accent) !important;
-  }
-  .stButton>button:hover, .stDownloadButton>button:hover{
     background: var(--white) !important;
     color: var(--navy) !important;
-    border-color: var(--white) !important;
+    border: 1px solid var(--white) !important;
+    font-family: "Source Sans 3", Arial, sans-serif !important;
+    font-weight: 600 !important;
   }
+  .stButton>button:hover, .stDownloadButton>button:hover{
+    background: rgba(255,255,255,0.85) !important;
+    border-color: rgba(255,255,255,0.85) !important;
+  }
+
+  /* Horizontal rule */
+  hr { border-top: 1px solid var(--grid) !important; }
 </style>
 """
 components.html(CSS, height=0, scrolling=False)
 
-YALE_BLUES = ["#286dc0", "#7aa6de", "#00356b"]
+# ============================================================
+# FILES
+# ============================================================
+COHORT_FILES = {
+    "Cohort 4 Fellows": "YA2LS Cohort 4 Data (2024 Fellows).xlsx",
+    "Cohort 5 Fellows": "Cohort 5 Stats - Updated for Dashboard.xlsx",
+}
 
-def style_chart(fig):
-    # Transparent charts on navy background
-    grid = "rgba(255,255,255,0.18)"
+# Weekly coach form export (Cohort 5)
+COHORT5_WEEKLY_FILE = "Cohort 5 - Weekly Fellow Updates - SP26 (Responses).xlsx"
+
+# ============================================================
+# HELPERS
+# ============================================================
+NAVY = "#00356b"
+WHITE = "#ffffff"
+GRID = "rgba(255,255,255,0.12)"
+YALE_BLUES_ON_NAVY = ["#7aa6de", "#b9d3f2", "#286dc0", "#9cc3f5"]  # readable on navy
+
+def style_chart_dark(fig):
+    """Make Plotly charts readable on a navy background."""
     fig.update_layout(
-        font=dict(family="Source Sans 3, Arial, sans-serif", color="white"),
-        title=dict(font=dict(family="Libre Baskerville, Georgia, serif", color="white")),
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
-        legend=dict(font=dict(color="white"), title_font=dict(color="white")),
-        hoverlabel=dict(font=dict(color="white")),
+        font=dict(color=WHITE, family="Source Sans 3, Arial, sans-serif"),
+        title=dict(font=dict(color=WHITE, family="Libre Baskerville, Georgia, serif")),
+        legend=dict(font=dict(color=WHITE), title_font=dict(color=WHITE)),
         margin=dict(l=40, r=20, t=60, b=40),
-        colorway=YALE_BLUES
+        colorway=YALE_BLUES_ON_NAVY,
     )
-    fig.update_xaxes(gridcolor=grid, linecolor=grid, zerolinecolor=grid)
-    fig.update_yaxes(gridcolor=grid, linecolor=grid, zerolinecolor=grid)
+    fig.update_xaxes(gridcolor=GRID, linecolor=GRID, zerolinecolor=GRID, tickfont=dict(color=WHITE), title_font=dict(color=WHITE))
+    fig.update_yaxes(gridcolor=GRID, linecolor=GRID, zerolinecolor=GRID, tickfont=dict(color=WHITE), title_font=dict(color=WHITE))
     return fig
 
 def convert_df(df: pd.DataFrame) -> bytes:
@@ -98,14 +146,12 @@ def convert_df(df: pd.DataFrame) -> bytes:
 @st.cache_data
 def load_workbook(path: str) -> dict:
     sheets = pd.read_excel(path, sheet_name=None)
-    # normalize column names (trim) for every sheet
-    for k, df in sheets.items():
+    for df in sheets.values():
         df.columns = df.columns.astype(str).str.strip()
-        sheets[k] = df
     return sheets
 
 def normalize_value(v):
-    """Normalize display values for Cohort 5: N/A -> Not Applicable; blanks -> (missing)."""
+    """For display: N/A -> Not Applicable; blanks/NaN -> (missing)."""
     if pd.isna(v):
         return "(missing)"
     s = str(v).strip()
@@ -115,32 +161,24 @@ def normalize_value(v):
         return "Not Applicable"
     return s
 
-def _norm_yes_no(x):
-    if pd.isna(x):
-        return None
-    s = str(x).strip().lower()
-    if s in {"yes", "y", "true", "1"}:
-        return "Yes"
-    if s in {"no", "n", "false", "0"}:
-        return "No"
-    return None
+def count_yes_no(series: pd.Series):
+    """Count Yes/No-like responses in a column."""
+    s = series.astype(str).str.strip().str.lower()
+    yes = s.isin({"yes", "y", "true", "1"}).sum()
+    no = s.isin({"no", "n", "false", "0"}).sum()
+    return int(yes), int(no)
 
-def _safe_strip_cols(df: pd.DataFrame) -> pd.DataFrame:
-    df = df.copy()
-    df.columns = [str(c).strip() for c in df.columns]
-    return df
-
-# ============================================================
-# FILES IN REPO
-# ============================================================
-COHORT_FILES = {
-    "Cohort 4 Fellows": "YA2LS Cohort 4 Data (2024 Fellows).xlsx",
-    "Cohort 5 Fellows": "Cohort 5 Stats - Updated for Dashboard.xlsx",
-}
-
-# Weekly coach form responses (Cohort 5)
-COHORT5_WEEKLY_FILE = "Cohort 5 - Weekly Fellow Updates - SP26 (Responses).xlsx"
-COHORT5_WEEKLY_SHEET = "Form Responses 1"
+def week_sort_key(colname: str):
+    """
+    Sort 'Week of M/D' columns chronologically as best as possible.
+    Falls back to original if parsing fails.
+    """
+    m = re.search(r"week of\s*(\d{1,2})/(\d{1,2})", colname.lower())
+    if not m:
+        return (999, 999)
+    mm = int(m.group(1))
+    dd = int(m.group(2))
+    return (mm, dd)
 
 # ============================================================
 # SIDEBAR
@@ -149,7 +187,6 @@ st.sidebar.markdown(
     '<div class="sidebar-title">Access to Law School Cohort Data Dashboard</div>',
     unsafe_allow_html=True
 )
-
 st.sidebar.image("sidebar_photo.jpg", use_container_width=True)
 
 selected_cohort = st.sidebar.selectbox(
@@ -158,6 +195,7 @@ selected_cohort = st.sidebar.selectbox(
     index=0
 )
 
+# Load selected cohort workbook
 workbook_path = COHORT_FILES[selected_cohort]
 try:
     sheets = load_workbook(workbook_path)
@@ -177,16 +215,12 @@ is_cohort4 = ("Attendance_New" in sheets and "Test Scores" in sheets and "Applic
 is_cohort5 = ("Sheet1" in sheets and not is_cohort4)
 
 # ============================================================
-# COHORT 4 — INDIVIDUAL ONLY (charts OK)
+# COHORT 4
 # ============================================================
 if is_cohort4:
     df_attendance = sheets["Attendance_New"].copy()
     df_scores = sheets["Test Scores"].copy()
     df_app = sheets["Application Status"].copy()
-
-    df_attendance = _safe_strip_cols(df_attendance)
-    df_scores = _safe_strip_cols(df_scores)
-    df_app = _safe_strip_cols(df_app)
 
     # Full names
     df_attendance["Full Name"] = (
@@ -205,7 +239,7 @@ if is_cohort4:
     st.header("Individual Fellow Report")
     st.subheader(selected)
 
-    # -------------------- LSAT Scores --------------------
+    # LSAT Scores
     lsat_cols = [
         "Diagnostic", "PT 73", "PT 136", "PT 137", "PT 138", "PT 139", "PT 140", "PT 141",
         "PT 144", "PT 145", "PT 146", "PT 147", "PT 148", "PT 149", "PT 150", "PT 151"
@@ -231,13 +265,15 @@ if is_cohort4:
         st.info("No LSAT score data available for this fellow.")
     else:
         fig_lsat = px.line(
-            scores_long, x="Test", y="Score",
+            scores_long,
+            x="Test",
+            y="Score",
             title=f"LSAT Scores for {selected}",
-            markers=True
+            markers=True,
         )
-        st.plotly_chart(style_chart(fig_lsat), use_container_width=True)
+        st.plotly_chart(style_chart_dark(fig_lsat), use_container_width=True)
 
-    # -------------------- Attendance --------------------
+    # Attendance
     fall_col = "Fall Small Group % Attendance"
     spring_col = "Spring Small Group % Attendance"
     sa_col = "Saturday Academy % Attendance"
@@ -280,9 +316,9 @@ if is_cohort4:
         )
         fig_att.update_xaxes(title_text="Attendance Type")
         fig_att.update_yaxes(title_text="Attendance Percent out of 100%")
-        st.plotly_chart(style_chart(fig_att), use_container_width=True)
+        st.plotly_chart(style_chart_dark(fig_att), use_container_width=True)
 
-    # -------------------- Application Status (field-by-field) --------------------
+    # Application Status (field-by-field)
     st.subheader("Application Status Overview")
     app_row = df_app[df_app["Full Name"] == selected].copy()
     if app_row.empty:
@@ -316,41 +352,41 @@ if is_cohort4:
     )
 
 # ============================================================
-# COHORT 5 — INDIVIDUAL ONLY (+ WEEKLY COACH UPDATES)
-# N/A -> Not Applicable
+# COHORT 5
 # ============================================================
 elif is_cohort5:
-    df = sheets["Sheet1"].copy()
-    df = _safe_strip_cols(df)
+    df_bio = sheets["Sheet1"].copy()
+    df_bio.columns = df_bio.columns.astype(str).str.strip()
 
-    # Name column (support variants)
+    # Name column (support common variants)
     name_col = None
     for c in ["Name", "Full Name", "Unnamed: 0"]:
-        if c in df.columns:
+        if c in df_bio.columns:
             name_col = c
             break
     if name_col is None:
-        st.error("Cohort 5 Stats file: could not find a name column (expected 'Name' or 'Unnamed: 0').")
+        st.error("Cohort 5 bio file: could not find a name column (expected 'Name' or 'Unnamed: 0').")
         st.stop()
 
-    df["Fellow Name"] = df[name_col].astype(str).str.strip()
-    fellows = sorted(df["Fellow Name"].dropna().unique())
+    df_bio["Fellow Name"] = df_bio[name_col].astype(str).str.strip()
+    fellows = sorted(df_bio["Fellow Name"].dropna().unique())
     selected = st.sidebar.selectbox("Select Fellow", fellows)
 
-    st.header("Individual Fellow Report")
-    st.subheader(selected)
-
-    row_df = df[df["Fellow Name"] == selected].copy()
-    if row_df.empty:
-        st.error("Selected fellow not found in Cohort 5 stats data.")
-        st.stop()
-    row = row_df.iloc[0].to_dict()
-
+    # Tabs: Bio + Weekly Updates
     tab_bio, tab_weekly = st.tabs(["Biographical Snapshot", "Weekly Coach Updates"])
 
-    # -------------------- BIO TAB --------------------
+    # ---------------- BIO TAB ----------------
     with tab_bio:
-        # NOTE: sheet has typo "Undergraduate Instituion" in some versions
+        st.header("Individual Fellow Report")
+        st.subheader(selected)
+
+        row_df = df_bio[df_bio["Fellow Name"] == selected].copy()
+        if row_df.empty:
+            st.error("Selected fellow not found in Cohort 5 biographical data.")
+            st.stop()
+        row = row_df.iloc[0].to_dict()
+
+        # Your requested fields (with typo-tolerance)
         field_map = [
             ("First-Gen", "First-Gen"),
             ("Age", "Age"),
@@ -363,38 +399,38 @@ elif is_cohort5:
             ("Diagnostic LSAT", "Diagnostic LSAT"),
         ]
 
-        st.subheader("Biographical Snapshot")
-
         shown = set()
         for raw_col, label in field_map:
             if raw_col in row and raw_col not in shown:
                 st.write(f"**{label}:** {normalize_value(row.get(raw_col))}")
                 shown.add(raw_col)
 
-        extras = [c for c in df.columns if c not in {name_col, "Fellow Name"} and c not in shown]
+        extras = [c for c in df_bio.columns if c not in {name_col, "Fellow Name"} and c not in shown]
         if extras:
+            st.divider()
             st.subheader("Additional Fields")
             for c in extras:
                 st.write(f"**{c}:** {normalize_value(row.get(c))}")
 
+        st.divider()
         st.download_button(
-            "Download Fellow Row (CSV)",
-            convert_df(df[df["Fellow Name"] == selected]),
-            f"{selected}_cohort5_stats.csv",
+            "Download Fellow Bio Row (CSV)",
+            convert_df(df_bio[df_bio["Fellow Name"] == selected]),
+            f"{selected}_cohort5_bio.csv",
             "text/csv"
         )
         st.download_button(
-            "Download Full Cohort 5 Stats (CSV)",
-            convert_df(df),
-            "cohort5_stats_full.csv",
+            "Download Full Cohort 5 Bio Data (CSV)",
+            convert_df(df_bio),
+            "cohort5_bio_full.csv",
             "text/csv"
         )
 
-    # -------------------- WEEKLY TAB --------------------
+    # ---------------- WEEKLY TAB ----------------
     with tab_weekly:
-        st.subheader("Weekly Coach Updates (from form responses)")
+        st.header("Weekly Coach Updates (Cohort 5)")
+        st.caption("Source: Google Form export workbook in the repo folder.")
 
-        # Load weekly responses
         try:
             weekly_sheets = load_workbook(COHORT5_WEEKLY_FILE)
         except FileNotFoundError:
@@ -404,203 +440,160 @@ elif is_cohort5:
             )
             st.stop()
 
-        if COHORT5_WEEKLY_SHEET not in weekly_sheets:
-            st.error(
-                f"Weekly file found, but sheet '{COHORT5_WEEKLY_SHEET}' is missing. "
-                f"Available sheets: {list(weekly_sheets.keys())}"
-            )
-            st.stop()
-
-        wdf = _safe_strip_cols(weekly_sheets[COHORT5_WEEKLY_SHEET])
-
-        # Identify key columns (based on your uploaded sheet)
-        fellow_col = None
-        for c in ["Fellow name (first and last)", "Fellow Name", "Student", "Fellow"]:
-            if c in wdf.columns:
-                fellow_col = c
-                break
-        if fellow_col is None:
-            st.error("Weekly file: could not find the fellow name column.")
-            st.stop()
-
-        coach_col = None
-        for c in ["Coach name (first and last)", "Coach Name", "Coach"]:
-            if c in wdf.columns:
-                coach_col = c
-                break
-
-        # Filter to selected fellow (case-insensitive, trimmed)
-        wdf["_fellow_norm"] = wdf[fellow_col].astype(str).str.strip().str.lower()
-        sel_norm = str(selected).strip().lower()
-        wsel = wdf[wdf["_fellow_norm"] == sel_norm].copy()
-
-        if wsel.empty:
-            st.info("No weekly coach submissions found yet for this fellow.")
+        # Most Google Form exports use "Form Responses 1"
+        if "Form Responses 1" in weekly_sheets:
+            df_weekly = weekly_sheets["Form Responses 1"].copy()
         else:
-            # ---------------- Attendance: Saturday Academies ----------------
-            att_cols = [c for c in wsel.columns if "Saturday Academy" in c]
-            # Keep stable order
-            att_cols = sorted(att_cols, key=lambda s: s)
+            # fall back to the first sheet
+            first_sheet_name = list(weekly_sheets.keys())[0]
+            df_weekly = weekly_sheets[first_sheet_name].copy()
 
-            if att_cols:
-                att_long = []
-                for c in att_cols:
-                    session = str(c).strip().replace("  ", " ")
-                    series = wsel[c].apply(_norm_yes_no)
-                    yes = int((series == "Yes").sum())
-                    no = int((series == "No").sum())
-                    if yes > 0:
-                        att_long.append({"Session": session, "Response": "Yes", "Count": yes})
-                    if no > 0:
-                        att_long.append({"Session": session, "Response": "No", "Count": no})
+        df_weekly.columns = df_weekly.columns.astype(str).str.strip()
 
-                att_long = pd.DataFrame(att_long)
+        # Try to identify fellow name column in weekly export
+        weekly_name_col = None
+        for c in ["Name", "Fellow Name", "Student Name", "Fellow", "Full Name"]:
+            if c in df_weekly.columns:
+                weekly_name_col = c
+                break
 
-                st.subheader("Saturday Academy Attendance (Counts)")
+        if weekly_name_col is None:
+            # if we can't detect, still allow aggregate view
+            st.info("Could not detect a fellow name column in the weekly export. Showing aggregate charts only.")
+            df_filtered = df_weekly
+        else:
+            df_weekly["Fellow Name"] = df_weekly[weekly_name_col].astype(str).str.strip()
+            # filter to selected fellow when possible
+            df_filtered = df_weekly[df_weekly["Fellow Name"] == selected].copy()
+            if df_filtered.empty:
+                st.info("No weekly entries found for this fellow yet. Aggregate charts below reflect all responses.")
+                df_filtered = df_weekly
 
-                # Separate charts exactly as requested: attended vs missed
-                attended = att_long[att_long["Response"] == "Yes"].copy()
-                missed = att_long[att_long["Response"] == "No"].copy()
+        # Detect Attendance columns
+        sa_cols = [c for c in df_weekly.columns if "Saturday Academy" in c]
+        ryan_cols = [c for c in df_weekly.columns if "1-on-1 with Ryan" in c or "1-on-1 w/ Ryan" in c or "1 on 1 with Ryan" in c]
 
-                if attended.empty:
-                    st.info("No 'Yes' (attended) Saturday Academy responses recorded yet.")
-                else:
-                    fig_yes = px.bar(
-                        attended,
-                        x="Session",
-                        y="Count",
-                        title="Programs Attended (Yes)",
-                    )
-                    fig_yes.update_xaxes(title_text="Program Attended")
-                    fig_yes.update_yaxes(title_text="Count")
-                    st.plotly_chart(style_chart(fig_yes), use_container_width=True)
+        # Detect Coach Engagement columns (they are week-by-week in your sheet)
+        ce_cols = [c for c in df_weekly.columns if "Coach Engagement" in c]
 
-                if missed.empty:
-                    st.info("No 'No' (missed) Saturday Academy responses recorded yet.")
-                else:
-                    fig_no = px.bar(
-                        missed,
-                        x="Session",
-                        y="Count",
-                        title="Programs Missed (No)",
-                    )
-                    fig_no.update_xaxes(title_text="Program Missed")
-                    fig_no.update_yaxes(title_text="Count")
-                    st.plotly_chart(style_chart(fig_no), use_container_width=True)
+        # -------------------- Saturday Academy charts --------------------
+        if sa_cols:
+            st.subheader("Saturday Academy Attendance (Counts)")
 
-            else:
-                st.info("No Saturday Academy columns found yet in the weekly form export.")
+            attended = []
+            missed = []
 
-            # ---------------- Attendance: 1-on-1 with Ryan ----------------
-            ryan_cols = [c for c in wsel.columns if "1-on-1 with Ryan" in c]
-            ryan_cols = sorted(ryan_cols, key=lambda s: s)
+            for c in sa_cols:
+                yes, no = count_yes_no(df_weekly[c])
+                attended.append({"Program": c.replace(" - Saturday Academy Attendance", "").strip(), "Count": yes})
+                missed.append({"Program": c.replace(" - Saturday Academy Attendance", "").strip(), "Count": no})
 
-            if ryan_cols:
-                r_long = []
-                for c in ryan_cols:
-                    label = str(c).strip().replace("  ", " ")
-                    series = wsel[c].apply(_norm_yes_no)
-                    yes = int((series == "Yes").sum())
-                    no = int((series == "No").sum())
-                    if yes > 0:
-                        r_long.append({"Session": label, "Response": "Yes", "Count": yes})
-                    if no > 0:
-                        r_long.append({"Session": label, "Response": "No", "Count": no})
+            df_attended = pd.DataFrame(attended).sort_values("Program")
+            df_missed = pd.DataFrame(missed).sort_values("Program")
 
-                r_long = pd.DataFrame(r_long)
+            c1, c2 = st.columns(2)
 
-                st.subheader("1-on-1 with Ryan (Counts)")
+            fig_yes = px.bar(df_attended, x="Program", y="Count", title="Attended (Yes)")
+            fig_yes.update_xaxes(title_text="Programs Attended")
+            fig_yes.update_yaxes(title_text="Count")
+            c1.plotly_chart(style_chart_dark(fig_yes), use_container_width=True)
 
-                attended = r_long[r_long["Response"] == "Yes"].copy()
-                missed = r_long[r_long["Response"] == "No"].copy()
+            fig_no = px.bar(df_missed, x="Program", y="Count", title="Missed (No)")
+            fig_no.update_xaxes(title_text="Programs Missed")
+            fig_no.update_yaxes(title_text="Count")
+            c2.plotly_chart(style_chart_dark(fig_no), use_container_width=True)
+        else:
+            st.info("No 'Saturday Academy Attendance' columns detected yet in the weekly export.")
 
-                if not attended.empty:
-                    fig_yes = px.bar(attended, x="Session", y="Count", title="Sessions Attended (Yes)")
-                    fig_yes.update_xaxes(title_text="Session Attended")
-                    fig_yes.update_yaxes(title_text="Count")
-                    st.plotly_chart(style_chart(fig_yes), use_container_width=True)
-                else:
-                    st.info("No 'Yes' (attended) 1-on-1 with Ryan responses recorded yet.")
+        st.divider()
 
-                if not missed.empty:
-                    fig_no = px.bar(missed, x="Session", y="Count", title="Sessions Missed (No)")
-                    fig_no.update_xaxes(title_text="Session Missed")
-                    fig_no.update_yaxes(title_text="Count")
-                    st.plotly_chart(style_chart(fig_no), use_container_width=True)
-                else:
-                    st.info("No 'No' (missed) 1-on-1 with Ryan responses recorded yet.")
+        # -------------------- Ryan 1-on-1 charts --------------------
+        if ryan_cols:
+            st.subheader("1-on-1 with Ryan (Counts)")
 
-            else:
-                st.info("No 1-on-1 with Ryan columns found yet in the weekly form export.")
+            attended = []
+            missed = []
 
-            # ---------------- Coach Engagement (free text) ----------------
-            engage_cols = [c for c in wsel.columns if "Coach Engagement" in c]
-            engage_cols = sorted(engage_cols, key=lambda s: s)
+            for c in ryan_cols:
+                yes, no = count_yes_no(df_weekly[c])
+                label = c
+                label = re.sub(r"\s*-\s*1[- ]on[- ]1.*$", "", label, flags=re.IGNORECASE).strip()
+                attended.append({"Week/Program": label, "Count": yes})
+                missed.append({"Week/Program": label, "Count": no})
 
-            if engage_cols:
-                notes = []
-                for _, r in wsel.iterrows():
-                    coach = str(r.get(coach_col)).strip() if coach_col else "Coach"
-                    for c in engage_cols:
-                        txt = r.get(c)
-                        if pd.isna(txt) or str(txt).strip() == "":
-                            continue
-                        week_label = str(c).strip()
-                        notes.append(
-                            {
-                                "Week": week_label,
-                                "Coach": coach,
-                                "Note": str(txt).strip(),
-                            }
-                        )
+            df_attended = pd.DataFrame(attended).sort_values("Week/Program")
+            df_missed = pd.DataFrame(missed).sort_values("Week/Program")
 
-                notes_df = pd.DataFrame(notes)
+            c1, c2 = st.columns(2)
 
-                st.subheader("Coach Engagement (Weekly)")
+            fig_yes = px.bar(df_attended, x="Week/Program", y="Count", title="Attended (Yes)")
+            fig_yes.update_xaxes(title_text="Sessions Attended")
+            fig_yes.update_yaxes(title_text="Count")
+            c1.plotly_chart(style_chart_dark(fig_yes), use_container_width=True)
 
-                if notes_df.empty:
-                    st.info("No Coach Engagement text has been submitted yet for this fellow.")
-                else:
-                    # Chart: number of engagement notes per week
-                    counts = (
-                        notes_df.groupby("Week")["Note"]
-                        .count()
-                        .reset_index(name="Count")
-                        .sort_values("Week")
-                    )
-                    fig_counts = px.bar(
-                        counts,
-                        x="Week",
-                        y="Count",
-                        title="Number of Coach Engagement Entries per Week",
-                    )
-                    fig_counts.update_xaxes(title_text="Week")
-                    fig_counts.update_yaxes(title_text="Count")
-                    st.plotly_chart(style_chart(fig_counts), use_container_width=True)
+            fig_no = px.bar(df_missed, x="Week/Program", y="Count", title="Missed (No)")
+            fig_no.update_xaxes(title_text="Sessions Missed")
+            fig_no.update_yaxes(title_text="Count")
+            c2.plotly_chart(style_chart_dark(fig_no), use_container_width=True)
+        else:
+            st.info("No '1-on-1 with Ryan' columns detected yet in the weekly export.")
 
-                    # Expanders: actual text (most useful for Forman / staff)
-                    for week in counts["Week"].tolist():
-                        wk = notes_df[notes_df["Week"] == week].copy()
-                        with st.expander(week, expanded=False):
-                            for _, rr in wk.iterrows():
-                                st.write(f"**{rr['Coach']}:** {rr['Note']}")
+        st.divider()
 
-                    st.download_button(
-                        "Download This Fellow’s Weekly Notes (CSV)",
-                        convert_df(notes_df),
-                        f"{selected}_weekly_coach_engagement.csv",
-                        "text/csv"
-                    )
-            else:
-                st.info("No Coach Engagement columns found yet in the weekly form export.")
+        # -------------------- Coach Engagement --------------------
+        if ce_cols:
+            st.subheader("Coach Engagement (Weekly)")
 
-            # Download raw weekly rows for this fellow (good for audits/debugging)
-            st.download_button(
-                "Download Raw Weekly Responses for This Fellow (CSV)",
-                convert_df(wsel.drop(columns=["_fellow_norm"], errors="ignore")),
-                f"{selected}_weekly_raw.csv",
-                "text/csv"
-            )
+            # count how many non-empty responses per week
+            week_counts = []
+            ce_cols_sorted = sorted(ce_cols, key=week_sort_key)
+
+            for c in ce_cols_sorted:
+                s = df_weekly[c].astype(str).str.strip()
+                count_non_empty = int((s != "").sum() - (s.str.lower() == "nan").sum())
+                week_counts.append({"Week": c.replace(" - Coach Engagement", "").strip(), "Count": count_non_empty})
+
+            df_counts = pd.DataFrame(week_counts)
+
+            fig_ce = px.bar(df_counts, x="Week", y="Count", title="Number of Coach Engagement Responses (Non-Empty)")
+            fig_ce.update_xaxes(title_text="Week")
+            fig_ce.update_yaxes(title_text="Count")
+            st.plotly_chart(style_chart_dark(fig_ce), use_container_width=True)
+
+            st.subheader("What Coaches Wrote (by Week)")
+
+            # Show the actual text, either per selected fellow (if we detected names) or all entries
+            for c in ce_cols_sorted:
+                week_label = c.replace(" - Coach Engagement", "").strip()
+                with st.expander(week_label, expanded=False):
+                    s = df_filtered[c] if c in df_filtered.columns else df_weekly[c]
+                    s = s.dropna().astype(str).str.strip()
+                    s = s[s != ""]
+                    if s.empty:
+                        st.write("(No responses.)")
+                    else:
+                        # If we can show coach name along with response, try to detect it
+                        if "Coach Name" in df_filtered.columns:
+                            show_df = df_filtered[["Coach Name", c]].copy()
+                            show_df["Coach Name"] = show_df["Coach Name"].astype(str).str.strip()
+                            show_df[c] = show_df[c].astype(str).str.strip()
+                            show_df = show_df[(show_df[c] != "") & (show_df[c].str.lower() != "nan")]
+                            for _, r in show_df.iterrows():
+                                st.write(f"**{r['Coach Name']}:** {r[c]}")
+                        else:
+                            # Just list responses
+                            for txt in s.tolist():
+                                st.write(f"- {txt}")
+        else:
+            st.info("No 'Coach Engagement' columns detected yet in the weekly export.")
+
+        st.divider()
+        st.download_button(
+            "Download Weekly Export (CSV)",
+            convert_df(df_weekly),
+            "cohort5_weekly_export.csv",
+            "text/csv"
+        )
 
 else:
     st.error(
