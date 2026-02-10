@@ -114,9 +114,6 @@ COHORT_FILES = {
 st.sidebar.markdown(
     '<div class="sidebar-title">Access to Law School Cohort Data Dashboard</div>',
     unsafe_allow_html=True
-st.sidebar.markdown(
-    '<div class="sidebar-title">Access to Law School Cohort Data Dashboard</div>',
-    unsafe_allow_html=True
 )
 st.sidebar.image("sidebar_photo.jpg", use_container_width=True)
 
