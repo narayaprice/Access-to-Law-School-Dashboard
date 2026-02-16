@@ -504,48 +504,6 @@ elif is_cohort5:
 
   weekly_fellow = weekly[weekly["Fellow"] == selected].copy()
 
-  # --- Attendance: Saturday Academy ---
-  sa_cols = [c for c in weekly.columns if "Saturday Academy" in c]
-  if sa_cols:
-    sa_long = weekly[["Fellow"] + sa_cols].copy()
-    sa_long = sa_long.melt(id_vars=["Fellow"], var_name="Program", value_name="Raw")
-    sa_long["Response"] = sa_long["Raw"].apply(normalize_yes_no)
-    sa_long = sa_long.dropna(subset=["Response"])
-
-    sa_counts = (
-      sa_long.groupby(["Program", "Response"])
-      .size()
-      .reset_index(name="Count")
-      .sort_values(["Response", "Program"])
-    )
-
-    st.subheader("Saturday Academy Attendance (All Fellows)")
-    attendance_bar_charts(sa_counts, "Saturday Academy")
-  else:
-    st.info("No 'Saturday Academy' columns found yet in the weekly updates file.")
-
-  # --- Attendance: 1-on-1 with Ryan ---
-  ryan_cols = [c for c in weekly.columns if "1-on-1 with Ryan" in c]
-  ryan_cols = [c for c in ryan_cols if c != "1-on-1 with Ryan"]
-
-  if ryan_cols:
-    ryan_long = weekly[["Fellow"] + ryan_cols].copy()
-    ryan_long = ryan_long.melt(id_vars=["Fellow"], var_name="Program", value_name="Raw")
-    ryan_long["Response"] = ryan_long["Raw"].apply(normalize_yes_no)
-    ryan_long = ryan_long.dropna(subset=["Response"])
-
-    ryan_counts = (
-      ryan_long.groupby(["Program", "Response"])
-      .size()
-      .reset_index(name="Count")
-      .sort_values(["Response", "Program"])
-    )
-
-    st.subheader("1-on-1 with Ryan Attendance (All Fellows)")
-    attendance_bar_charts(ryan_counts, "1-on-1 with Ryan")
-  else:
-    st.info("No weekly '1-on-1 with Ryan' columns found yet in the weekly updates file.")
-
   # --- Coach Engagement ---
   engagement_cols = [c for c in weekly.columns if "Coach Engagement" in c]
   if engagement_cols:
@@ -557,23 +515,6 @@ elif is_cohort5:
       & (eng_melt["Text"] != "")
       & (eng_melt["Text"].str.lower() != "nan")
     ]
-
-    week_counts = eng_melt.groupby("Week").size().reset_index(name="Count")
-
-    st.subheader("Coach Engagement (All Fellows): Responses per Week")
-    if week_counts.empty:
-      st.info("No Coach Engagement text has been entered yet.")
-    else:
-      fig_week = px.bar(
-        week_counts,
-        x="Week",
-        y="Count",
-        title="Coach Engagement — Responses per Week",
-        labels={"Week": "Week", "Count": "Count of Engagement Entries"},
-      )
-      fig_week.update_xaxes(title_text="Week", tickangle=-25)
-      fig_week.update_yaxes(title_text="Count of Engagement Entries")
-      st.plotly_chart(style_plotly(fig_week), use_container_width=True)
 
     st.subheader(f"Coach Engagement Notes (Selected Fellow: {selected})")
     if weekly_fellow.empty:
@@ -615,7 +556,7 @@ elif is_cohort5:
 
 else:
   st.error(
-    "This workbook doesn’t match Cohort 4 (Attendance_New/Test Scores/Application Status) "
+    "This workbook doesn't match Cohort 4 (Attendance_New/Test Scores/Application Status) "
     "or Cohort 5 (Sheet1) schemas."
   )
   st.stop()
